@@ -1,6 +1,7 @@
 import numpy as np
-
+import matplotlib.pyplot as plt
 from BinaryReader import BinaryReader, InstanceDim
+from InputList import diabetic_training_files
 import os
 
 def create_testbinary():
@@ -16,6 +17,17 @@ def create_testbinary():
         for element in fake_input_data_bytes:
             f.write(element)
 
+def test_binary_to_instance():
+    br = BinaryReader()
+    generator = br.instance_from_binaries_generator(diabetic_training_files, 0)
+    i, j = 0, 0
+    for elem in generator:
+        if i == np.random.randint(30, 90):
+            plt.imsave("instance_test/b-scan_test_nr" + str(j) + ".png", elem[0][:,:,-1])
+            plt.imsave("instance_test/c-scan_test_nr" + str(j) + ".png", elem[0][:,3,:])
+            i = 0
+            j += 1
+        i += 1
 
 def test_instance_generator():
     create_testbinary()

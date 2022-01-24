@@ -3,6 +3,7 @@ import numpy as np
 import os
 from dataclasses import dataclass
 import tensorflow as tf
+from typing import Iterator
 
 @dataclass
 class InstanceDim:
@@ -23,7 +24,7 @@ class BinaryReader:
         self.cscan_length = 2045
         self.data_type = np.dtype('<u2')
 
-    def instance_from_binaries_generator(self, list_of_files, label: int):
+    def instance_from_binaries_generator(self, list_of_files, label: int) -> Iterator: #TODO:
         """
 
         :param list_of_files:
@@ -44,16 +45,17 @@ class BinaryReader:
         :return:
         """
         instance_size = self._decide_instance_size()
-        healthy_dataset = tf.data.Dataset.from_generator(
-            self.instance_from_binaries_generator, args=[InputList.healthy_training_files, 0],
+        diabetic_dataset = tf.data.Dataset.from_generator(
+            self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 0],
             output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize),
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=self.data_type))
             ).prefetch(1)
-        diabetic_dataset = tf.data.Dataset.from_generator(
-            self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 0]
-        ).prefetch(1)
-        training_dataset = tf.data.Dataset.zip((healthy_dataset, diabetic_dataset))
+        # diabetic_dataset = tf.data.Dataset.from_generator(
+        #     self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 0]
+        # ).prefetch(1)
+        # training_dataset = tf.data.Dataset.zip((healthy_dataset, diabetic_dataset))
+        training_dataset = diabetic_dataset
         return training_dataset
 
     """

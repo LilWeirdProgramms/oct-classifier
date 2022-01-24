@@ -7,10 +7,10 @@ class Preprocessor:
         self.batch_size = 20
 
     def preprocess(self, input_data: tf_data.Dataset):
-        dataset = self.shuffle_batch(input_data)
+        dataset = self.batch(input_data)
         return dataset
 
-    def shuffle_batch(self, input_data: tf_data.Dataset):
-        return input_data.shuffle(input_data.cardinality().numpy()).batch(self.batch_size)
+    def batch(self, input_data: tf_data.Dataset):
+        return input_data.shuffle(89*73).batch(self.batch_size)  # TODO:
 
 
