@@ -46,10 +46,10 @@ class BinaryReader:
         """
         instance_size = self._decide_instance_size()
         diabetic_dataset = tf.data.Dataset.from_generator(
-            self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 0],
+            self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 1],
             output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize),
                                             dtype=self.data_type),
-                              tf.TensorSpec(shape=(), dtype=self.data_type))
+                              tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
             ).prefetch(1)
         # diabetic_dataset = tf.data.Dataset.from_generator(
         #     self.instance_from_binaries_generator, args=[InputList.diabetic_training_files, 0]
