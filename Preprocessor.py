@@ -13,7 +13,7 @@ class Preprocessor:
     def batch(self, batch_size):
         return self.dataset.shuffle(5).batch(batch_size)  # TODO:
 
-    def standardize(self):
+    def normalize_dataset(self):
         self.calc_moments()
         self.dataset = self.dataset.map(lambda x, y: ((x.numpy() - self.mean) / self.std, y))
 
@@ -32,10 +32,13 @@ class Preprocessor:
             n += 1
         self.mean /= n
         self.std /= n
+        print("Mean: " + str(self.mean) + "; Standard Deviation: " + str(self.std))
 
     def normalize_layer(self):
-        normalizer = Normalization()
+        normalizer = Normalization(axis=None)
         normalizer.adapt(self.dataset.map(lambda x, y: x))
+        self.mean /= normalizer.mean
+        self.std /= normalizer.variance**0.5
         return normalizer
 
 

@@ -1,10 +1,12 @@
 import numpy as np
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Permute, Dense, Conv3D, MaxPooling3D, Flatten, BatchNormalization
+from tensorflow.keras.layers import Input, Permute, Dense, Conv3D, MaxPooling3D, Flatten
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 from tensorflow.keras.optimizers import Adam
+from tensorflow import keras
 
-def classiRaw3D(input_size, normalizer=False, reconstruction=True):
+
+def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=True):
     #dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
     
     init = "glorot_normal"
@@ -28,7 +30,7 @@ def classiRaw3D(input_size, normalizer=False, reconstruction=True):
         conv_inp = Permute((4, 2, 3, 1))(dense1)
 
     conv = conv_inp
-#create nconv downsampling layers
+    #create nconv downsampling layers
     for i in range(1, nconv+1):
         conv = Conv3D(32*m*i, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
             (conv)
@@ -43,7 +45,7 @@ def classiRaw3D(input_size, normalizer=False, reconstruction=True):
 
     #model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(lr=1e-4), loss="categorical_crossentropy")
+    model.compile(optimizer=Adam(lr=1e-4), loss="categorical_crossentropy", metrics=[keras.metrics.CategoricalAccuracy])
     model.summary()
 
     return model
