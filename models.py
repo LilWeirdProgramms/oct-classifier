@@ -45,7 +45,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
 
     #model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(lr=1e-4), loss="categorical_crossentropy", metrics=[keras.metrics.CategoricalAccuracy])
+    model.compile(optimizer=Adam(lr=1e-4), loss="categorical_crossentropy", metrics=[keras.metrics.CategoricalAccuracy()])
     model.summary()
 
     return model

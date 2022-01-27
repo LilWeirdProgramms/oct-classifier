@@ -68,8 +68,8 @@ class BinaryReader:
         """
         instance_size = self._decide_instance_size()
         dataset = tf.data.Dataset.from_generator(
-            self.instance_from_binaries_generator, args=[file_list],
-            output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize),
+            self.instance_from_binaries_generator, args=[[(data, str(label)) for data, label in file_list]],
+            output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize, 1),
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
             ).prefetch(1)
@@ -81,7 +81,7 @@ class BinaryReader:
         :param file_list:
         :return:
         """
-        split_at = math.floor(len(file_list)/(1-self.validation_split))
+        split_at = self._one_or_80_percent(file_list)
         training_files = file_list[:split_at]
         validation_files = file_list[split_at:]
         got_healthy = any([elem[1] == 0 for elem in validation_files])
@@ -90,14 +90,18 @@ class BinaryReader:
             print("Warning: Only files of one Dataset are present in the Validation Dataset")
         return training_files, validation_files
 
+    def _one_or_80_percent(self, file_list):
+        return min(math.floor(len(file_list)/(1-self.validation_split)), 1)
+
     def _create_instance(self, file, instance_size: InstanceDim):
         """
         Move to: tf.data.TFRecordDataset(filenames = [fsns_test_file])
+        1 for greyscale image
         """
-        instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize), self.data_type)
+        instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
             for b_index in range(instance_size.bsize):
-                instance[:, b_index, c_index] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length) #TODO: MAke sure it also wprks with binary
+                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length) #TODO: MAke sure it also wprks with binary
             file.seek(self.data_type.itemsize*self.ascan_length*(self.bscan_length-instance_size.bsize), os.SEEK_CUR)
         return instance
 

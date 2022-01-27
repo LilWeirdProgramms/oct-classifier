@@ -1,16 +1,13 @@
 import os
 
 set_of_healthy_training_files = {
-    "a"
 }
 set_of_diabetic_training_files = {
     "D87/rechts/raw_1536x2048x2045x2_30515.bin"
 }
 set_of_healthy_testing_files = {
-    "b"
 }
 set_of_diabetic_testing_files = {
-    "c"
 }
 
 server_location = "/mnt/server/Projects/UWF OCTA/Clinical data/MOON1/"
@@ -26,8 +23,8 @@ healthy_testing_files = [(os.path.join(healthy_location, healthy_file), 0)
 diabetic_testing_files = [(os.path.join(diabetic_location, diabetic_file), 1)
                           for diabetic_file in set_of_diabetic_testing_files]
 
-training_files = healthy_training_files.extend(diabetic_training_files)
-testing_files = healthy_testing_files.extend(diabetic_testing_files)
+training_files = healthy_training_files + diabetic_training_files
+testing_files = healthy_testing_files + diabetic_testing_files
 
 assert len(set_of_diabetic_training_files.intersection(set_of_diabetic_testing_files, set_of_healthy_training_files,
                                                        set_of_healthy_testing_files)) == 0, \
