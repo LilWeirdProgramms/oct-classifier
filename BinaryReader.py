@@ -25,6 +25,7 @@ class BinaryReader:
         self.cscan_length = 2045
         self.validation_split = validation_split
         self.data_type = np.dtype('<u2')
+        self.add_info_map = None
 
     def create_test_dataset(self, file_list):
         """
@@ -47,7 +48,7 @@ class BinaryReader:
         validation_dataset = self.create_dataset(val)
         return train_dataset, validation_dataset
 
-    def instance_from_binaries_generator(self, list_of_files) -> Generator: #TODO:
+    def instance_from_binaries_generator(self, list_of_files) -> Generator:
         """
 
         :param list_of_files:
@@ -58,8 +59,11 @@ class BinaryReader:
             with open(filepath, "rb") as f:
                 for i in range(instance_size.ctimes):
                     for j in range(instance_size.btimes):
-                        f.seek(self.data_type.itemsize*j*instance_size.bsize*self.ascan_length, os.SEEK_SET)
-                        yield self._create_instance(f, instance_size), label  # TODO: Name?
+                        index = self.data_type.itemsize * (j * instance_size.bsize +
+                                                           i * instance_size.csize * self.bscan_length) * \
+                                self.ascan_length
+                        f.seek(index, os.SEEK_SET)
+                        yield self._create_instance(f, instance_size), label
 
     def create_dataset(self, file_list) -> tf.data.Dataset:
         """
