@@ -8,6 +8,7 @@ import math
 
 @dataclass
 class InstanceDim:
+    asize: int
     bsize: int
     csize: int
     btimes: int
@@ -25,7 +26,7 @@ class BinaryReader:
         self.cscan_length = 2045
         self.validation_split = validation_split
         self.data_type = np.dtype('<u2')
-        self.add_info_map = None
+        self.info_map = []
 
     def create_test_dataset(self, file_list):
         """
@@ -48,12 +49,14 @@ class BinaryReader:
         validation_dataset = self.create_dataset(val)
         return train_dataset, validation_dataset
 
-    def instance_from_binaries_generator(self, list_of_files) -> Generator:
+    def instance_from_binaries_generator(self, list_of_files, evaluate=False) -> Generator:
         """
 
+        :param evaluate: Indicate that the set is generated for evaluation  TODO: Can there be one parameter that is used also in the Preprocessor?
         :param list_of_files:
         :return:
         """
+        self.info_map = []
         instance_size = self._decide_instance_size()
         for filepath, label in list_of_files:
             with open(filepath, "rb") as f:
@@ -62,6 +65,8 @@ class BinaryReader:
                         index = self.data_type.itemsize * (j * instance_size.bsize +
                                                            i * instance_size.csize * self.bscan_length) * \
                                 self.ascan_length
+                        if evaluate:
+                            self._create_info_map(filepath, [i, j])
                         f.seek(index, os.SEEK_SET)
                         yield self._create_instance(f, instance_size), label
 
@@ -105,9 +110,21 @@ class BinaryReader:
         instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
             for b_index in range(instance_size.bsize):
-                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length) #TODO: MAke sure it also wprks with binary
+                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length)  # TODO: MAke sure it also wprks with binary
             file.seek(self.data_type.itemsize*self.ascan_length*(self.bscan_length-instance_size.bsize), os.SEEK_CUR)
         return instance
+
+    def _create_info_map(self, bag_name_path: str, instance_position):
+        """
+        Creates an info map "on the fly" while the generator is iterated
+        :param bag_name_path: File Path of Bag
+        :param instance_position: Position of Instance in the File; remains to be seen where the indeces start
+        :return:
+        """
+        list_of_folders = bag_name_path.split(os.sep)
+        ending = list_of_folders[-1].split(".")
+        number = ending[-2].split("_")[-1]
+        self.info_map.append([number, instance_position])
 
     def _decide_instance_size(self):
         """
@@ -117,5 +134,5 @@ class BinaryReader:
         #     for i in range(1,dim):
         #         if dim%i < 2:
         #             print(i, dim//i, dim%i) -> Slice 89, 73 mal
-        self.cscan_length = 2044 # -> One has to go
-        return InstanceDim(23, 28, 89, 73)
+        self.cscan_length = 2044  # -> One has to go
+        return InstanceDim(1536, 23, 28, 89, 73)

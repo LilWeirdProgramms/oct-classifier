@@ -49,6 +49,12 @@ def _test_binary_to_instance():
         i += 1
 
 
+def test_info_map():
+    br = BinaryReader()
+    br._create_info_map("D87/rechts/raw_1536x2048x2045x2_30515.bin", [1, 2])
+    assert br.info_map[0][0] == "30515"
+
+
 def test_instance_generator2():
     create_testbinary2()
     br = BinaryReader()
