@@ -121,10 +121,9 @@ class BinaryReader:
         :param instance_position: Position of Instance in the File; remains to be seen where the indeces start
         :return:
         """
-        list_of_folders = bag_name_path.split(os.sep)
-        ending = list_of_folders[-1].split(".")
-        number = ending[-2].split("_")[-1]
-        self.info_map.append([number, instance_position])
+        file_name = bag_name_path.split(os.sep)
+        number = len(self.info_map)
+        self.info_map.append([number, instance_position, file_name])
 
     def _decide_instance_size(self):
         """
