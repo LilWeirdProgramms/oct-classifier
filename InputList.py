@@ -1,11 +1,18 @@
 import os
 
 set_of_healthy_training_files = {
+
 }
 set_of_diabetic_training_files = {
     "D87/rechts/raw_1536x2048x2045x2_30515.bin"
+    "D93/rechts besser/raw_1536x2048x2045x2_7592.bin"
+    "D108/rechts/raw_1536x2048x2045x2_20962.bin"
 }
+# Currently all right eyes
 set_of_healthy_testing_files = {
+    "H3/raw_1536x2048x2045x2_9201.bin"  # Bir
+    "H4/raw_1536x2048x2045x2_12417.bin"  # Jon
+    "H5/raw_1536x2048x2045x2_17600.bin"  # Anj
 }
 set_of_diabetic_testing_files = {
 }

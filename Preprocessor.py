@@ -3,6 +3,7 @@ from tensorflow import data as tf_data
 from typing import Iterator
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 
+
 class Preprocessor:
 
     def __init__(self, dataset: tf_data.Dataset):
@@ -11,7 +12,7 @@ class Preprocessor:
         self.std = None
 
     def batch(self, batch_size):
-        return self.dataset.shuffle(5).batch(batch_size)  # TODO:
+        return self.dataset.shuffle(5).batch(batch_size)  # TODO: Without shuffle
 
     def normalize_dataset(self):
         self.calc_moments()
@@ -40,8 +41,3 @@ class Preprocessor:
         self.mean = normalizer.mean
         self.std = normalizer.variance**0.5
         return normalizer
-
-
-
-
-

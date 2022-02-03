@@ -11,7 +11,7 @@ class ImageVisualizer:
     def __init__(self,
                  results,
                  info_map: list,
-                 background_image: str = None,
+                 background_image_path: str = None,
                  image_size=(2047, 2045),
                  instance_size=(23, 28),
                  bag_number=0):
@@ -26,7 +26,7 @@ class ImageVisualizer:
         """
         self.info_Map = info_map
         self.results = results
-        self.background_image = background_image
+        self.background_image = background_image_path
         self.image_size = image_size
         self.instance_size = instance_size
         self.bag_number = bag_number

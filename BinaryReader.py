@@ -21,7 +21,7 @@ class BinaryReader:
     Suffling and Batching: fmnist_train_ds.shuffle(5000).batch(32)
     """
     def __init__(self, validation_split=0.2):
-        self.ascan_length = 1536
+        self.ascan_length = 1536  # TODO: Make size explizit
         self.bscan_length = 2047
         self.cscan_length = 2045
         self.validation_split = validation_split
@@ -59,11 +59,11 @@ class BinaryReader:
         self.info_map = []
         instance_size = self._decide_instance_size()
         for filepath, label in list_of_files:
-            with open(filepath, "rb") as f:
+            with open(filepath, "rb") as f:  # TODO: trenn die Ausschneidelogik von der lese Logik
                 for i in range(instance_size.ctimes):
-                    for j in range(instance_size.btimes):
+                    for j in range(instance_size.btimes):  # TODO: Make 2 explicit
                         index = self.data_type.itemsize * (j * instance_size.bsize +
-                                                           i * instance_size.csize * self.bscan_length) * \
+                                                           2 * i * instance_size.csize * self.bscan_length) * \
                                 self.ascan_length
                         if evaluate:
                             self._create_info_map(filepath, [i, j])
@@ -109,9 +109,11 @@ class BinaryReader:
         """
         instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
-            for b_index in range(instance_size.bsize):
+            for b_index in range(instance_size.bsize):  # TODO: Make 2 explicit
                 instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length)  # TODO: MAke sure it also wprks with binary
-            file.seek(self.data_type.itemsize*self.ascan_length*(self.bscan_length-instance_size.bsize), os.SEEK_CUR)
+            file.seek(self.data_type.itemsize *
+                      self.ascan_length*(2 * self.bscan_length - instance_size.bsize)
+                      , os.SEEK_CUR)
         return instance
 
     def _create_info_map(self, bag_name_path: str, instance_position):
