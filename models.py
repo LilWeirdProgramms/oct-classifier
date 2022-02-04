@@ -13,7 +13,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     binit = "glorot_normal"
     
     #input
-    inp = Input(shape=(1536, 23, 28, 1), dtype="float32")  # TODO: sketchy for the label
+    inp = Input(shape=input_size, dtype="float32")  # TODO: sketchy way
     conv_inp = inp
     if normalizer:
         conv_inp = normalizer(conv_inp)
@@ -22,7 +22,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     m = 1
     nconv = 4
 
-    # Bin ich dumm oder geht hier das label mit rein?
+    # Bin ich dumm oder geht hier das label mit rein? -> Ich bin dumm
     if reconstruction:
         size_doutp = np.int32(np.floor(input_size[0]/2))
         dense1 = Permute((4, 2, 3, 1))(conv_inp) #dense layer connects input densely along last dimension; reorder dimesions

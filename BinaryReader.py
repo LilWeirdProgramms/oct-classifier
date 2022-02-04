@@ -14,7 +14,7 @@ class InstanceDim:
     btimes: int
     ctimes: int
 
-
+# TODO: Dont only accept File List with Labels
 class BinaryReader:
     """
     Validation Split using .fit(validation_split=0.2) -> Keras
@@ -43,6 +43,7 @@ class BinaryReader:
         :param file_list: Pass Training File List
         :return: Datasets for training and validation purpose
         """
+        self._check_file_existance(file_list)
         np.random.shuffle(file_list)
         train, val = self.split_file_list_for_validation(file_list)
         train_dataset = self.create_dataset(train)
@@ -68,7 +69,7 @@ class BinaryReader:
                         if evaluate:
                             self._create_info_map(filepath, [i, j])
                         f.seek(index, os.SEEK_SET)
-                        yield self._create_instance(f, instance_size), label
+                        yield self._create_instance(f, instance_size), float(label)
 
     def create_dataset(self, file_list) -> tf.data.Dataset:
         """
@@ -137,3 +138,12 @@ class BinaryReader:
         #             print(i, dim//i, dim%i) -> Slice 89, 73 mal
         self.cscan_length = 2044  # -> One has to go
         return InstanceDim(1536, 23, 28, 89, 73)
+
+    def _check_file_existance(self, file_list: list):  # TODO: File list refactor
+        file_exists = [not os.path.exists(file) for file, label in file_list]
+        if any(file_exists):
+            missing_file = file_list[np.argmax(file_exists)]
+            raise FileExistsError(f"The File {missing_file} was not found on disk")
+
+
+
