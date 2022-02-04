@@ -14,14 +14,12 @@ class InstanceDim:
     btimes: int
     ctimes: int
 
-
 # TODO: Dont only accept File List with Labels
 class BinaryReader:
     """
     Validation Split using .fit(validation_split=0.2) -> Keras
     Suffling and Batching: fmnist_train_ds.shuffle(5000).batch(32)
     """
-
     def __init__(self, validation_split=0.2):
         self.ascan_length = 1536  # TODO: Make size explizit
         self.bscan_length = 2047
@@ -59,26 +57,19 @@ class BinaryReader:
         :param list_of_files:
         :return:
         """
-
-        list_of_opened_files = []
-        for filepath, label in list_of_files:
-            list_of_opened_files.append((open(filepath, "rb"), label))  # TODO: trenn die Ausschneidelogik von der lese Logik
-
         self.info_map = []
         instance_size = self._decide_instance_size()
         for i in range(instance_size.ctimes):
             for j in range(instance_size.btimes):  # TODO: Make 2 explicit
-                for file, label in list_of_opened_files:  # TODO: trenn die Ausschneidelogik von der lese Logik
-                    index = self.data_type.itemsize * (j * instance_size.bsize +
-                                                       2 * i * instance_size.csize * self.bscan_length) * \
-                            self.ascan_length
-                    if evaluate:
-                        self._create_info_map(filepath, [i, j])
-                    file.seek(index, os.SEEK_SET)
-                    yield self._create_instance(file, instance_size), float(label)
-
-        for filepath, label in list_of_opened_files:
-            filepath.close()
+                for filepath, label in list_of_files:
+                    with open(filepath, "rb") as f:  # TODO: trenn die Ausschneidelogik von der lese Logik
+                        index = self.data_type.itemsize * (j * instance_size.bsize +
+                                                           2 * i * instance_size.csize * self.bscan_length) * \
+                                self.ascan_length
+                        #if evaluate:
+                        #    self._create_info_map(filepath, [i, j])
+                        f.seek(index, os.SEEK_SET)
+                        yield self._create_instance(f, instance_size), int(label)
 
     def create_dataset(self, file_list) -> tf.data.Dataset:
         """
@@ -91,7 +82,7 @@ class BinaryReader:
             output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize, 1),
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
-        ).prefetch(1)
+            ).prefetch(tf.data.AUTOTUNE)
         return dataset
 
     def split_file_list_for_validation(self, file_list):
@@ -110,7 +101,7 @@ class BinaryReader:
         return training_files, validation_files
 
     def _one_or_80_percent(self, file_list):
-        return max(math.floor(len(file_list) * (1 - self.validation_split)), 1)
+        return max(math.floor(len(file_list)*(1-self.validation_split)), 1)
 
     def _create_instance(self, file, instance_size: InstanceDim):
         """
@@ -120,10 +111,9 @@ class BinaryReader:
         instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
             for b_index in range(instance_size.bsize):  # TODO: Make 2 explicit
-                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type,
-                                                               count=self.ascan_length)  # TODO: MAke sure it also wprks with binary
+                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length)  # TODO: MAke sure it also wprks with binary
             file.seek(self.data_type.itemsize *
-                      self.ascan_length * (2 * self.bscan_length - instance_size.bsize)
+                      self.ascan_length*(2 * self.bscan_length - instance_size.bsize)
                       , os.SEEK_CUR)
         return instance
 
@@ -154,3 +144,6 @@ class BinaryReader:
         if any(file_exists):
             missing_file = file_list[np.argmax(file_exists)]
             raise FileExistsError(f"The File {missing_file} was not found on disk")
+
+
+
