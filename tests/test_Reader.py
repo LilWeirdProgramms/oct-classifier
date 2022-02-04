@@ -8,6 +8,14 @@ alen = 6
 blen = 4
 clen = 3
 
+def test_80_percent():
+    br = BinaryReader()
+    split = br._one_or_80_percent([1, 2, 3, 4])
+    assert split == 3
+    split = br._one_or_80_percent([1, 2])
+    assert split == 1
+    split = br._one_or_80_percent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    assert split == 8
 
 def create_testbinary():
     fake_input_size = (alen, blen, clen)

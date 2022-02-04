@@ -40,20 +40,20 @@ class CustomCallback(keras.callbacks.Callback):
         plt.tight_layout()
         plt.show()
 
-    def on_epoch_end(self, epoch, logs=None):
-        self.x.append(epoch)
-        self.loss.append(logs["loss"])
-        clear_output(wait=True)
-        self.val_loss.append(logs["val_loss"])
-        plt.figure(figsize=(10, 8))
-        ax1 = plt.subplot2grid((1,1), (0,0), colspan=1, rowspan=1)
-        ax1.plot(self.x, self.loss, lw=4, label="Training")
-        ax1.plot(self.x, self.val_loss, lw=4, label="Validation")
-        ax1.legend(fontsize=16)
-        ax1.set_xlabel("Epoche", fontsize=16)
-        ax1.set_ylabel("Loss", fontsize=16)
-        plt.tight_layout()
-        plt.show()
+    # def on_epoch_end(self, epoch, logs=None):
+    #     self.x.append(epoch)
+    #     self.loss.append(logs["loss"])
+    #     clear_output(wait=True)
+    #     self.val_loss.append(logs["val_loss"])
+    #     plt.figure(figsize=(10, 8))
+    #     ax1 = plt.subplot2grid((1,1), (0,0), colspan=1, rowspan=1)
+    #     ax1.plot(self.x, self.loss, lw=4, label="Training")
+    #     ax1.plot(self.x, self.val_loss, lw=4, label="Validation")
+    #     ax1.legend(fontsize=16)
+    #     ax1.set_xlabel("Epoche", fontsize=16)
+    #     ax1.set_ylabel("Loss", fontsize=16)
+    #     plt.tight_layout()
+    #     plt.show()
 
 
 model_checkpoint_callback = keras.callbacks.ModelCheckpoint(

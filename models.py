@@ -38,7 +38,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
         
     #flatten and fully connected layer
     flat = Flatten()(conv)
-    denseO = Dense(1, activation="softmax", use_bias=False, kernel_initializer=init, bias_initializer=binit)(flat)  # TODO: Why no bias?
+    denseO = Dense(2, activation="softmax", use_bias=False, kernel_initializer=init, bias_initializer=binit)(flat)  # TODO: Why no bias?
     
     #output
     outp = denseO
