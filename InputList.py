@@ -16,7 +16,7 @@ _set_of_healthy_testing_files = {
 _set_of_diabetic_testing_files = {
 }
 
-_server_location = "/mnt/server/Projects/UWF OCTA/Clinical data/MOON1/"
+_server_location = "/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/"
 _diabetic_location = _server_location
 _healthy_location = _server_location
 
