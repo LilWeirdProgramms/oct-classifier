@@ -6,7 +6,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow import keras
 
 
-def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=True):
+def classiRaw3D(input_size, output_size, normalizer: Normalization = None, reconstruction=True):
     #dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
     
     init = "glorot_normal"
@@ -19,7 +19,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
         conv_inp = normalizer(conv_inp)
 
     #settings
-    m = 1
+    m = 2
     nconv = 4
 
     # Bin ich dumm oder geht hier das label mit rein? -> Ich bin dumm
@@ -35,17 +35,18 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
         conv = Conv3D(32*m*i, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
             (conv)
         conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
-        
+
     #flatten and fully connected layer
     flat = Flatten()(conv)
-    denseO = Dense(2, activation="softmax", use_bias=False, kernel_initializer=init, bias_initializer=binit)(flat)  # TODO: Why no bias?
+    denseO = Dense(1, activation="linear", use_bias=True, kernel_initializer=init, bias_initializer=binit,
+                   kernel_regularizer=keras.regularizers.l1(l1=0.1))(flat)  # TODO: Why no bias?
     
     #output
     outp = denseO
 
     #model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(lr=1e-4), loss="sparse_categorical_crossentropy",
+    model.compile(optimizer=Adam(lr=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
                   metrics=[keras.metrics.SparseCategoricalCrossentropy()])
     model.summary()
 

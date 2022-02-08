@@ -69,7 +69,7 @@ class BinaryReader:
                         #if evaluate:
                         #    self._create_info_map(filepath, [i, j])
                         f.seek(index, os.SEEK_SET)
-                        yield self._create_instance(f, instance_size), int(label)
+                        yield self._create_instance(f, instance_size), float(label)
 
     def create_dataset(self, file_list) -> tf.data.Dataset:
         """

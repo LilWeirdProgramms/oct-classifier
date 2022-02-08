@@ -63,7 +63,12 @@ model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     mode='max',
     save_best_only=True)
 
+history_checkpoint_callback = keras.callbacks.CSVLogger("checkpoints/log.csv", separator=",", append=True)
+tb_callback = keras.callbacks.TensorBoard('checkpoints/tensorboard/logs', update_freq=20)
+
 my_callbacks = [
     CustomCallback(),
-    model_checkpoint_callback
+    model_checkpoint_callback,
+    history_checkpoint_callback,
+    tb_callback
 ]
