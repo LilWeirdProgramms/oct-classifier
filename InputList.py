@@ -3,9 +3,13 @@ import os
 _set_of_healthy_training_files = {
     "H3/raw_1536x2048x2045x2_9201.bin",  # Bir
     "H4/raw_1536x2048x2045x2_12417.bin",  # Jon
-    "H5/raw_1536x2048x2045x2_17600.bin"  # Anj, sar, kath
+    "H5/raw_1536x2048x2045x2_17600.bin",  # Anj
+    "H6/rechts/raw_1536x2048x2045x2_8042.bin",  # sar
+    "H7/rechts/raw_1536x2048x2045x2_9772.bin"  # kath
 }
 _set_of_diabetic_training_files = {
+    "D78/rechts/raw_1536x2048x2045x2_18038.bin",
+    "D85/rechts/raw_1536x2048x2045x2_19200.bin",
     "D87/rechts/raw_1536x2048x2045x2_30515.bin",
     "D93/rechts besser/raw_1536x2048x2045x2_7592.bin",
     "D108/rechts/raw_1536x2048x2045x2_20962.bin"

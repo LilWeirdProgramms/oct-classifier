@@ -29,7 +29,6 @@ share/python-wheels/
 MANIFEST
 instance_test/
 logs/
-checkpoints/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

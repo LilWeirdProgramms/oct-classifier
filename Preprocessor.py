@@ -37,7 +37,7 @@ class Preprocessor:
 
     def normalize_layer(self):
         normalizer = Normalization(axis=None)
-        normalizer.adapt(self.dataset.map(lambda x, y: x))
+        normalizer.adapt(self.dataset.map(lambda x, y: x).take(10))
         self.mean = normalizer.mean
         self.std = normalizer.variance**0.5
         return normalizer

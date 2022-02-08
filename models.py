@@ -15,19 +15,19 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     #input
     inp = Input(shape=input_size, dtype="float32")  # TODO: sketchy way
     conv_inp = inp
-    # if normalizer:
-    #     conv_inp = normalizer(conv_inp)
+    if normalizer:
+        conv_inp = normalizer(conv_inp)
 
     #settings
     m = 1
     nconv = 4
 
     # Bin ich dumm oder geht hier das label mit rein? -> Ich bin dumm
-    # if reconstruction:
-    size_doutp = np.int32(np.floor(input_size[0]/2))
-    dense1 = Permute((4, 2, 3, 1))(conv_inp) #dense layer connects input densely along last dimension; reorder dimesions
-    dense1 = Dense(size_doutp, activation="relu", use_bias=False, kernel_initializer=init, bias_initializer=binit)(dense1)
-    conv_inp = Permute((4, 2, 3, 1))(dense1)
+    if reconstruction:
+        size_doutp = np.int32(np.floor(input_size[0]/2))
+        dense1 = Permute((4, 2, 3, 1))(conv_inp) #dense layer connects input densely along last dimension; reorder dimesions
+        dense1 = Dense(size_doutp, activation="relu", use_bias=False, kernel_initializer=init, bias_initializer=binit)(dense1)
+        conv_inp = Permute((4, 2, 3, 1))(dense1)
 
     conv = conv_inp
     #create nconv downsampling layers
