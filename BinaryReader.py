@@ -94,9 +94,10 @@ class BinaryReader:
         split_at = self._one_or_80_percent(file_list)
         training_files = file_list[:split_at]
         validation_files = file_list[split_at:]
+        print(validation_files)
         got_healthy = any([elem[1] == 0 for elem in validation_files])
         got_diabetic = any([elem[1] == 1 for elem in validation_files])
-        if got_healthy and got_diabetic:
+        if not (got_healthy and got_diabetic):
             print("Warning: Only files of one Dataset are present in the Validation Dataset")
         return training_files, validation_files
 

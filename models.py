@@ -6,7 +6,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow import keras
 
 
-def classiRaw3D(input_size, output_size, normalizer: Normalization = None, reconstruction=True):
+def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=True):
     #dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
     
     init = "glorot_normal"
@@ -46,8 +46,9 @@ def classiRaw3D(input_size, output_size, normalizer: Normalization = None, recon
 
     #model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(lr=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
-                  metrics=[keras.metrics.SparseCategoricalCrossentropy()])
+    model.compile(optimizer=Adam(lr=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True)
+                  #,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+                  )
     model.summary()
 
     return model

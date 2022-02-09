@@ -60,8 +60,16 @@ model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
     filepath="checkpoints/best_model",
     save_weights_only=True,
     monitor='val_loss',
-    mode='max',
+    mode='min',
     save_best_only=True)
+
+last_epoch_callback = keras.callbacks.ModelCheckpoint(
+    filepath="checkpoints/last_model",
+    save_weights_only=True,
+    monitor='val_loss',
+    save_freq='epoch',
+    save_best_only=False)
+
 
 history_checkpoint_callback = keras.callbacks.CSVLogger("checkpoints/log.csv", separator=",", append=True)
 tb_callback = keras.callbacks.TensorBoard('checkpoints/tensorboard/logs', update_freq=20)
