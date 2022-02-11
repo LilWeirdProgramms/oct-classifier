@@ -59,6 +59,16 @@ def _test_binary_to_instance():
             j += 1
         i += 1
 
+
+def test_fromfile():
+    out = np.zeros((5,))
+    with open("testbinary.bin", "rb") as f:
+        for i in range(100):
+            from_file = np.fromfile(f, dtype=np.dtype("u2"), count=5)
+            out[:len(from_file)] = from_file
+            print(out)
+
+
 def test_diabetic_healthy_diff():
     a = plt.figure(figsize=(16, 10))
     br = BinaryReader()

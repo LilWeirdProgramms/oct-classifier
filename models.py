@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Input, Permute, Dense, Conv3D, MaxPooling3D,
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow import keras
-
+import tensorflow as tf
 
 def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=True):
     #dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
@@ -53,3 +53,16 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
 
     return model
 
+
+# Klasse um zusatz Infos hineinzugeben?
+
+
+def multi_gpu_raw_3D(input_size, normalizer, reconstruction):
+    strategy = tf.distribute.MirroredStrategy()
+    print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+    # Open a strategy scope.
+    with strategy.scope():
+        multi_model = classiRaw3D(input_size, normalizer, reconstruction)
+
+    return multi_model

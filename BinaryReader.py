@@ -82,8 +82,12 @@ class BinaryReader:
             output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize, 1),
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
-            ).prefetch(tf.data.AUTOTUNE)
-        return dataset
+            )
+        parallel_dataset = tf.data.Dataset.range(12)\
+            .interleave(lambda _: dataset,
+                        num_parallel_calls=tf.data.AUTOTUNE)\
+            .prefetch(tf.data.AUTOTUNE)
+        return parallel_dataset
 
     def split_file_list_for_validation(self, file_list):
         """
@@ -106,13 +110,18 @@ class BinaryReader:
 
     def _create_instance(self, file, instance_size: InstanceDim):
         """
+        Employs constant Padding
         Move to: tf.data.TFRecordDataset(filenames = [fsns_test_file])
         1 for greyscale image
         """
+        # output_instance = np.zeros((instance_size.asize,))
         instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
             for b_index in range(instance_size.bsize):  # TODO: Make 2 explicit
-                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=self.ascan_length)  # TODO: MAke sure it also wprks with binary
+                # read_from_file = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)  # TODO: MAke sure it also wprks with binary
+                # output_instance[:len(read_from_file)] = read_from_file
+                # instance[:, b_index, c_index, 0] = output_instance
+                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)
             file.seek(self.data_type.itemsize *
                       self.ascan_length*(2 * self.bscan_length - instance_size.bsize)
                       , os.SEEK_CUR)
@@ -137,8 +146,10 @@ class BinaryReader:
         #     for i in range(1,dim):
         #         if dim%i < 2:
         #             print(i, dim//i, dim%i) -> Slice 89, 73 mal
-        self.cscan_length = 2044  # -> One has to go
-        return InstanceDim(1536, 23, 28, 89, 73)
+        self.cscan_length = 2040  # -> One has to go
+        self.bscan_length = 2040  # -> One has to go
+        # InstanceDim(1536, 23, 28, 89, 73)
+        return InstanceDim(1536, 102, 102, 20, 20)
 
     def _check_file_existance(self, file_list: list):  # TODO: File list refactor
         file_exists = [not os.path.exists(file) for file, label in file_list]
