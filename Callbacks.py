@@ -1,7 +1,7 @@
 import tensorflow.keras as keras
 from IPython.display import clear_output
 import matplotlib.pyplot as plt
-
+from datetime import datetime
 
 class CustomCallback(keras.callbacks.Callback):
 
@@ -66,13 +66,17 @@ model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
 last_epoch_callback = keras.callbacks.ModelCheckpoint(
     filepath="checkpoints/last_model",
     save_weights_only=True,
-    monitor='val_loss',
     save_freq='epoch',
     save_best_only=False)
 
 
 history_checkpoint_callback = keras.callbacks.CSVLogger("checkpoints/log.csv", separator=",", append=True)
 tb_callback = keras.callbacks.TensorBoard('checkpoints/tensorboard/logs', update_freq=20)
+
+logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+tboard_callback = keras.callbacks.TensorBoard(log_dir="logs/new",
+                                              histogram_freq=1,
+                                              profile_batch='1,2')
 
 my_callbacks = [
     CustomCallback(),

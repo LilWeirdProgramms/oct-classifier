@@ -3,10 +3,12 @@ import matplotlib.pyplot as plt
 from BinaryReader import BinaryReader, InstanceDim
 from InputList import diabetic_training_files
 import os
+import InputList
 
 alen = 6
 blen = 4
 clen = 3
+
 
 def test_80_percent():
     br = BinaryReader()
@@ -16,6 +18,7 @@ def test_80_percent():
     assert split == 1
     split = br._one_or_80_percent([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     assert split == 8
+
 
 def create_testbinary():
     fake_input_size = (alen, blen, clen)
@@ -56,6 +59,19 @@ def _test_binary_to_instance():
             j += 1
         i += 1
 
+def test_diabetic_healthy_diff():
+    a = plt.figure(figsize=(16, 10))
+    br = BinaryReader()
+    generator = br.instance_from_binaries_generator(
+        [InputList.diabetic_training_files[4]]
+    )
+    for elem in generator:
+        a = elem[0][:, 0, 0, 0]
+        b = elem[0][:, 1, 0, 0]
+        plt.plot(a, "--", alpha=0.7)
+        plt.plot(b, "--", alpha=0.7)
+        break
+    plt.savefig('test.png')
 
 def test_info_map():
     br = BinaryReader()
@@ -109,6 +125,7 @@ def test_instance_generator2():
             [[35], [43]]],
         ])
         assert np.array_equal(generator5, expected_instance5)
+
 
 def _test_instance_generator():
     create_testbinary()

@@ -16,6 +16,7 @@ _set_of_diabetic_training_files = {
 }
 # Currently all right eyes
 _set_of_healthy_testing_files = {
+    "H3/raw_1536x2048x2045x2_9579.bin"
 }
 _set_of_diabetic_testing_files = {
     "D71/rechts/raw_1536x2048x2045x2_2591.bin"
