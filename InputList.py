@@ -14,7 +14,7 @@ _set_of_healthy_training_files = {
 }
 _set_of_diabetic_training_files = {
     "D78/rechts/raw_1536x2048x2045x2_18038.bin",
-    "D78/links/raw_1536x2048x2045x2_18749.bin"
+    "D78/links/raw_1536x2048x2045x2_18749.bin",
     "D85/rechts/raw_1536x2048x2045x2_19200.bin",
     "D87/rechts/raw_1536x2048x2045x2_30515.bin",
     "D88/links/raw_1536x2048x2045x2_19064.bin",

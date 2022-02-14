@@ -12,7 +12,7 @@ class Preprocessor:
         self.std = None
 
     def batch(self, batch_size):
-        return self.dataset.shuffle(3).batch(batch_size)  # TODO: Without shuffle
+        return self.dataset.batch(batch_size)  # TODO: Without shuffle
 
     def normalize_dataset(self):
         self.calc_moments()

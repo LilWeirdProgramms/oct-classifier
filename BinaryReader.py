@@ -83,7 +83,7 @@ class BinaryReader:
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
             )
-        parallel_dataset = tf.data.Dataset.range(12)\
+        parallel_dataset = tf.data.Dataset.range(2)\
             .interleave(lambda _: dataset,
                         num_parallel_calls=tf.data.AUTOTUNE)\
             .prefetch(tf.data.AUTOTUNE)
