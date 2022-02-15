@@ -9,8 +9,7 @@ _set_of_healthy_training_files = {
     "H5/raw_1536x2048x2045x2_18044.bin",
     "H6/rechts/raw_1536x2048x2045x2_8042.bin",  # sar
     "H6/links/raw_1536x2048x2045x2_8920.bin",
-    "H7/rechts/raw_1536x2048x2045x2_9772.bin",  # kath
-    "H7/links/raw_1536x2048x2045x2_10419.bin"
+    "H7/rechts/raw_1536x2048x2045x2_9772.bin"  # kath
 }
 _set_of_diabetic_training_files = {
     "D78/rechts/raw_1536x2048x2045x2_18038.bin",
@@ -26,6 +25,7 @@ _set_of_diabetic_training_files = {
 }
 # Currently all right eyes
 _set_of_healthy_testing_files = {
+    "H7/links/raw_1536x2048x2045x2_10419.bin"
 }
 _set_of_diabetic_testing_files = {
     "D71/rechts/raw_1536x2048x2045x2_2591.bin"

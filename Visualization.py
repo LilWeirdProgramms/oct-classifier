@@ -13,7 +13,7 @@ class ImageVisualizer:
                  info_map: list = None,
                  background_image_path: str = None,
                  image_size=(2044, 2048),
-                 instance_size=(28, 23),
+                 instance_size=(28, 23, 89, 73),  #TODO
                  bag_number=0):
         """
 
@@ -44,7 +44,7 @@ class ImageVisualizer:
         if not self.info_Map:
             my_mean = abs(np.mean(self.results[:, 0]))
             for i, instance_prop in enumerate(self.results[:, 0]):
-                instance_position = [i % 89, i // 89]
+                instance_position = [i % self.instance_size[2], i // self.instance_size[3]]
                 placement = (instance_position[0] * self.instance_size[1] + 2,
                              instance_position[1] * self.instance_size[0])
                 color = (0, 255, 0) if abs(instance_prop) > 1.2*my_mean \

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import tensorflow as tf
 from typing import Generator
 import math
+import logging
 
 
 @dataclass
@@ -25,8 +26,10 @@ class BinaryReader:
         self.bscan_length = 2047
         self.cscan_length = 2045
         self.validation_split = validation_split
+        self.instance_size = self._decide_instance_size()
         self.data_type = np.dtype('<u2')
         self.info_map = []
+        self.gpu = len(tf.config.list_physical_devices('GPU'))
 
     def create_test_dataset(self, file_list):
         """
@@ -58,36 +61,37 @@ class BinaryReader:
         :return:
         """
         self.info_map = []
-        instance_size = self._decide_instance_size()
-        for i in range(instance_size.ctimes):
-            for j in range(instance_size.btimes):  # TODO: Make 2 explicit
+        for i in range(self.instance_size.ctimes):
+            for j in range(self.instance_size.btimes):  # TODO: Make 2 explicit
                 for filepath, label in list_of_files:
                     with open(filepath, "rb") as f:  # TODO: trenn die Ausschneidelogik von der lese Logik
-                        index = self.data_type.itemsize * (j * instance_size.bsize +
-                                                           2 * i * instance_size.csize * self.bscan_length) * \
+                        index = self.data_type.itemsize * (j * self.instance_size.bsize +
+                                                           2 * i * self.instance_size.csize * self.bscan_length) * \
                                 self.ascan_length
                         #if evaluate:
                         #    self._create_info_map(filepath, [i, j])
+                        label = self._decide_label(i, j, label)
+                        logging.info(f"Position: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
                         f.seek(index, os.SEEK_SET)
-                        yield self._create_instance(f, instance_size), float(label)
+                        yield self._create_instance(f, self.instance_size), float(label)
 
     def create_dataset(self, file_list) -> tf.data.Dataset:
         """
         balanced_ds = tf.data.Dataset.sample_from_datasets([negative_ds, positive_ds], [0.5, 0.5]).
         :return:
         """
-        instance_size = self._decide_instance_size()
         dataset = tf.data.Dataset.from_generator(
             self.instance_from_binaries_generator, args=[[(data, str(label)) for data, label in file_list]],
-            output_signature=(tf.TensorSpec(shape=(self.ascan_length, instance_size.bsize, instance_size.csize, 1),
+            output_signature=(tf.TensorSpec(shape=(self.ascan_length, self.instance_size.bsize, self.instance_size.csize, 1),
                                             dtype=self.data_type),
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
             )
-        parallel_dataset = tf.data.Dataset.range(2)\
-            .interleave(lambda _: dataset,
-                        num_parallel_calls=tf.data.AUTOTUNE)\
-            .prefetch(tf.data.AUTOTUNE)
-        return parallel_dataset
+        if self.gpu:
+            dataset = tf.data.Dataset.range(2)\
+                .interleave(lambda _: dataset,
+                            num_parallel_calls=tf.data.AUTOTUNE)\
+                .prefetch(tf.data.AUTOTUNE)
+        return dataset
 
     def split_file_list_for_validation(self, file_list):
         """
@@ -114,14 +118,14 @@ class BinaryReader:
         Move to: tf.data.TFRecordDataset(filenames = [fsns_test_file])
         1 for greyscale image
         """
-        # output_instance = np.zeros((instance_size.asize,))
+        output_instance = np.zeros((instance_size.asize,))
         instance = np.empty((self.ascan_length, instance_size.bsize, instance_size.csize, 1), self.data_type)
         for c_index in range(instance_size.csize):
             for b_index in range(instance_size.bsize):  # TODO: Make 2 explicit
-                # read_from_file = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)  # TODO: MAke sure it also wprks with binary
-                # output_instance[:len(read_from_file)] = read_from_file
-                # instance[:, b_index, c_index, 0] = output_instance
-                instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)
+                read_from_file = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)  # TODO: MAke sure it also wprks with binary
+                output_instance[:len(read_from_file)] = read_from_file
+                instance[:, b_index, c_index, 0] = output_instance
+                #instance[:, b_index, c_index, 0] = np.fromfile(file, dtype=self.data_type, count=instance_size.asize)
             file.seek(self.data_type.itemsize *
                       self.ascan_length*(2 * self.bscan_length - instance_size.bsize)
                       , os.SEEK_CUR)
@@ -150,6 +154,20 @@ class BinaryReader:
         self.bscan_length = 2040  # -> One has to go
         # InstanceDim(1536, 23, 28, 89, 73)
         return InstanceDim(1536, 102, 102, 20, 20)
+
+    def _decide_label(self, cntr_y, cntr_x, label):
+        """
+        Sets the label of the instance to 0 if it is near a corner; kind of a bit semi supervised learning
+        :param cntr_y: Current Position in c scan direction
+        :param cntr_x: Current Position in b scan direction
+        :return: Decided Label
+        """
+        def value_near_boundary(x, y): return x - 1 < 1 or abs(x - y) <= 1
+        y_at_boundary = value_near_boundary(cntr_y, self.instance_size.ctimes)
+        x_at_boundary = value_near_boundary(cntr_x, self.instance_size.btimes)
+        if y_at_boundary and x_at_boundary:
+            label = 0
+        return label
 
     def _check_file_existance(self, file_list: list):  # TODO: File list refactor
         file_exists = [not os.path.exists(file) for file, label in file_list]

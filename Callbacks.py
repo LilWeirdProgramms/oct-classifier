@@ -76,7 +76,7 @@ tb_callback = keras.callbacks.TensorBoard('checkpoints/tensorboard/logs', update
 logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 tboard_callback = keras.callbacks.TensorBoard(log_dir="logs/new",
                                               histogram_freq=1,
-                                              profile_batch='10,25')
+                                              profile_batch='1,2')
 
 my_callbacks = [
     CustomCallback(),

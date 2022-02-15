@@ -22,7 +22,6 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     m = 2
     nconv = 4
 
-    # Bin ich dumm oder geht hier das label mit rein? -> Ich bin dumm
     if reconstruction:
         size_doutp = np.int32(np.floor(input_size[0]/2))
         dense1 = Permute((4, 2, 3, 1))(conv_inp) #dense layer connects input densely along last dimension; reorder dimesions
@@ -39,7 +38,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     #flatten and fully connected layer
     flat = Flatten()(conv)
     denseO = Dense(1, activation="linear", use_bias=True, kernel_initializer=init, bias_initializer=binit,
-                   kernel_regularizer=keras.regularizers.l1(l1=0.1))(flat)  # TODO: Why no bias?
+                   kernel_regularizer=keras.regularizers.l1(l1=0.01))(flat)
     
     #output
     outp = denseO
@@ -48,7 +47,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     model = Model(inputs=inp, outputs=outp)
     model.compile(optimizer=Adam(lr=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True)
                   #,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
-                  )
+    )
     model.summary()
 
     return model
@@ -66,3 +65,15 @@ def multi_gpu_raw_3D(input_size, normalizer, reconstruction):
         multi_model = classiRaw3D(input_size, normalizer, reconstruction)
 
     return multi_model
+
+
+class RawClassifier:
+
+    def __init__(self):
+        self.gpu = len(tf.config.list_physical_devices('GPU'))
+
+    def model(self):
+        if self.gpu:
+            return multi_gpu_raw_3D
+        else:
+            return classiRaw3D

@@ -68,6 +68,24 @@ def test_fromfile():
             out[:len(from_file)] = from_file
             print(out)
 
+def test_instance_generator():
+    br = BinaryReader()
+    br.instance_size.asize = 6
+    br.instance_size.bsize = 2
+    br.instance_size.csize = 1
+    br.instance_size.btimes = 2
+    br.instance_size.ctimes = 3
+    br.ascan_length = 6
+    br.bscan_length = 4
+    br.cscan_length = 3
+    for i in range(10):
+        gen = instace_generator_helper(br.instance_from_binaries_generator, [("testbinary.bin", 0)])
+        for elem in gen:
+            print(elem)
+
+def instace_generator_helper(function, args):
+    gen = function(args)
+    return gen
 
 def test_diabetic_healthy_diff():
     a = plt.figure(figsize=(16, 10))
@@ -82,6 +100,18 @@ def test_diabetic_healthy_diff():
         plt.plot(b, "--", alpha=0.7)
         break
     plt.savefig('test.png')
+
+def test_decide_label():
+    br = BinaryReader()
+    for i in range(2, 19):
+        for j in range(2, 19):
+            label = br._decide_label(j, i, 1)
+            assert label == 1
+    label = br._decide_label(0, 1, 1)
+    assert label == 0
+    label = br._decide_label(1, 19, 1)
+    assert label == 0
+
 
 def test_info_map():
     br = BinaryReader()
