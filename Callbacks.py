@@ -74,9 +74,9 @@ history_checkpoint_callback = keras.callbacks.CSVLogger("checkpoints/log.csv", s
 tb_callback = keras.callbacks.TensorBoard('checkpoints/tensorboard/logs', update_freq=20)
 
 logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-tboard_callback = keras.callbacks.TensorBoard(log_dir="logs/new",
+tboard_callback = keras.callbacks.TensorBoard(log_dir=logs,
                                               histogram_freq=1,
-                                              profile_batch='1,2')
+                                              profile_batch='1,20')
 
 my_callbacks = [
     CustomCallback(),

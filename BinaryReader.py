@@ -30,6 +30,7 @@ class BinaryReader:
         self.data_type = np.dtype('<u2')
         self.info_map = []
         self.gpu = len(tf.config.list_physical_devices('GPU'))
+        logging.basicConfig(filename='model_training.log', encoding='utf-8', level=logging.DEBUG)
 
     def create_test_dataset(self, file_list):
         """
@@ -87,7 +88,7 @@ class BinaryReader:
                               tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
             )
         if self.gpu:
-            dataset = tf.data.Dataset.range(2)\
+            dataset = tf.data.Dataset.range(8)\
                 .interleave(lambda _: dataset,
                             num_parallel_calls=tf.data.AUTOTUNE)\
                 .prefetch(tf.data.AUTOTUNE)

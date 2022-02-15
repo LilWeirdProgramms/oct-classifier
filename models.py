@@ -19,7 +19,7 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
         conv_inp = normalizer(conv_inp)
 
     #settings
-    m = 2
+    m = 1
     nconv = 4
 
     if reconstruction:
@@ -56,13 +56,13 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
 # Klasse um zusatz Infos hineinzugeben?
 
 
-def multi_gpu_raw_3D(input_size, normalizer, reconstruction):
+def multi_gpu_raw_3D(input_size, reconstruction):
     strategy = tf.distribute.MirroredStrategy()
     print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
 
     # Open a strategy scope.
     with strategy.scope():
-        multi_model = classiRaw3D(input_size, normalizer, reconstruction)
+        multi_model = classiRaw3D(input_size, reconstruction=reconstruction)
 
     return multi_model
 
@@ -74,6 +74,6 @@ class RawClassifier:
 
     def model(self):
         if self.gpu:
-            return multi_gpu_raw_3D
+            return classiRaw3D
         else:
             return classiRaw3D
