@@ -15,7 +15,7 @@ def generate_diabetic_files_list():
         for path, subdirs, files in os.walk(path):
             for file in files:
                 if re.search(r"raw_1536x2048x2045x2.+.bin$", file):
-                    my_diabetic_files.append((os.path.join(path, file), 0))
+                    my_diabetic_files.append((os.path.join(path, file), 1))
 
 
     InputList.diabetic_training_files = my_diabetic_files[:-10]

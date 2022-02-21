@@ -61,7 +61,7 @@ class BinaryReader:
         :param list_of_files:
         :return:
         """
-        self.info_map = []
+        # self.info_map = []
         for i in range(self.instance_size.ctimes):
             for j in range(self.instance_size.btimes):  # TODO: Make 2 explicit
                 for filepath, label in list_of_files:
@@ -72,7 +72,7 @@ class BinaryReader:
                         #if evaluate:
                         #    self._create_info_map(filepath, [i, j])
                         label = self._decide_label(i, j, label)
-                        logging.info(f"Position: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
+                        # logging.info(f"Position: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
                         f.seek(index, os.SEEK_SET)
                         yield self._create_instance(f, self.instance_size), float(label)
 
@@ -81,17 +81,32 @@ class BinaryReader:
         balanced_ds = tf.data.Dataset.sample_from_datasets([negative_ds, positive_ds], [0.5, 0.5]).
         :return:
         """
-        dataset = tf.data.Dataset.from_generator(
-            self.instance_from_binaries_generator, args=[[(data, str(label)) for data, label in file_list]],
-            output_signature=(tf.TensorSpec(shape=(self.ascan_length, self.instance_size.bsize, self.instance_size.csize, 1),
-                                            dtype=self.data_type),
-                              tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
-            )
-        if self.gpu:
-            dataset = tf.data.Dataset.range(8)\
-                .interleave(lambda _: dataset,
-                            num_parallel_calls=tf.data.AUTOTUNE)\
-                .prefetch(tf.data.AUTOTUNE)
+        # dataset = tf.data.Dataset.from_generator(
+        #     self.instance_from_binaries_generator, args=[[(data, str(label)) for data, label in file_list]],
+        #     output_signature=(tf.TensorSpec(shape=(self.ascan_length, self.instance_size.bsize, self.instance_size.csize, 1),
+        #                                     dtype=self.data_type),
+        #                       tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
+        #     )
+        # if self.gpu:
+        #     dataset = tf.data.Dataset.range(8)\
+        #         .interleave(lambda _: dataset,
+        #                     num_parallel_calls=tf.data.AUTOTUNE)\
+        #         .prefetch(tf.data.AUTOTUNE)
+        #     dataset = dataset.prefetch(tf.data.AUTOTUNE)
+
+        dataset = tf.data.Dataset.from_tensor_slices([(data, str(label)) for data, label in file_list]) \
+            .interleave(lambda x:
+                        tf.data.Dataset.from_generator(
+                            self.instance_from_binaries_generator, args=[[(x[0], x[1])]],
+                            output_signature=(tf.TensorSpec(
+                                shape=(self.ascan_length, self.instance_size.bsize, self.instance_size.csize, 1),
+                                dtype=self.data_type),
+                                              tf.TensorSpec(shape=(), dtype=np.dtype('u1')))
+                        ),
+                        num_parallel_calls=tf.data.AUTOTUNE,
+                        deterministic=False
+                        )\
+            .prefetch(tf.data.AUTOTUNE)
         return dataset
 
     def split_file_list_for_validation(self, file_list):

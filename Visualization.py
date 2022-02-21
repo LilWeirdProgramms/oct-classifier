@@ -42,13 +42,16 @@ class ImageVisualizer:
 
     def _place_results_in_grid(self, unplaced_image):
         if not self.info_Map:
-            my_mean = abs(np.mean(self.results[:, 0]))
+            sorted_results = sorted((self.results[:, 0]))
+            bound = 10
+            upper_bound = sorted_results[-bound]
+            lower_bound = sorted_results[10]
             for i, instance_prop in enumerate(self.results[:, 0]):
                 instance_position = [i % self.instance_size[2], i // self.instance_size[3]]
                 placement = (instance_position[0] * self.instance_size[1] + 2,
                              instance_position[1] * self.instance_size[0])
-                color = (0, 255, 0) if abs(instance_prop) > 1.2*my_mean \
-                    else (255, 0, 0) if abs(instance_prop) < 0.8*my_mean \
+                color = (0, 255, 0) if instance_prop > upper_bound \
+                    else (255, 0, 0) if instance_prop < lower_bound \
                     else (255, 255, 255)
                 ImageDraw.Draw(unplaced_image).text(
                     placement,  # Coordinates
@@ -83,11 +86,13 @@ class ImageVisualizer:
         self.background_image = Image.open(self.background_image).convert("RGB")
 
     @staticmethod
-    def raw_path_to_image(binary_path: str):
+    def raw_path_to_image(image_path: str):
         image_ident = ["retina", "png"]
         binary_ident = ["raw", "bin"]
         for a, b in zip(image_ident, binary_ident):
-            image_path = binary_path.replace(a, b)
+            image_path = image_path.replace(b, a)
         if not os.path.exists(image_path):
-            image_path = None
+            image_path = image_path.replace("retina", "choroid")
+            if not os.path.exists(image_path):
+                image_path = None
         return image_path

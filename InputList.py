@@ -28,7 +28,7 @@ _set_of_healthy_testing_files = {
     "H7/links/raw_1536x2048x2045x2_10419.bin"
 }
 _set_of_diabetic_testing_files = {
-    "D71/rechts/raw_1536x2048x2045x2_2591.bin"
+    "D39/links/raw_1536x2048x2045x2_31711.bin"
 }
 
 _server_location = "/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/"
