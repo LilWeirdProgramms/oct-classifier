@@ -82,5 +82,6 @@ my_callbacks = [
     CustomCallback(),
     model_checkpoint_callback,
     history_checkpoint_callback,
+    last_epoch_callback,
     tboard_callback
 ]

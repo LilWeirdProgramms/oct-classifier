@@ -4,6 +4,7 @@ from BinaryReader import BinaryReader, InstanceDim
 from InputList import diabetic_training_files
 import os
 import InputList
+from scipy.signal import savgol_filter
 
 alen = 6
 blen = 4
@@ -88,17 +89,67 @@ def instace_generator_helper(function, args):
     return gen
 
 def test_diabetic_healthy_diff():
-    a = plt.figure(figsize=(16, 10))
+    cntr = 0
+    plt.figure(figsize=(16, 10))
     br = BinaryReader()
     generator = br.instance_from_binaries_generator(
         [InputList.diabetic_training_files[4]]
     )
     for elem in generator:
-        a = elem[0][:, 0, 0, 0]
-        b = elem[0][:, 1, 0, 0]
-        plt.plot(a, "--", alpha=0.7)
-        plt.plot(b, "--", alpha=0.7)
-        break
+        if cntr == 0:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(a, "-", alpha=0.7, label="Diabetic Background")
+        cntr += 1
+        if cntr == 19:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(a, "-", alpha=0.7, label="Diabetic Retina")
+            cntr = 0
+            break
+    generator = br.instance_from_binaries_generator(
+        [InputList.healthy_training_files[4]]
+    )
+    for elem in generator:
+        if cntr == 0:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(a, "-", alpha=0.7, label="Healthy Background")
+        cntr += 1
+        if cntr == 19:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(a, "-", alpha=0.7, label="Diabetic Retina")
+            break
+    plt.legend(loc="upper right")
+    plt.savefig('test.png')
+
+def test_diabetic_healthy_diff2():
+    cntr = 0
+    plt.figure(figsize=(16, 10))
+    br = BinaryReader()
+    generator = br.instance_from_binaries_generator(
+        [InputList.diabetic_training_files[4]]
+    )
+    for elem in generator:
+        if cntr == 0:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(savgol_filter(a, 3, 2), "-", alpha=0.7, label="Diabetic Background")
+        cntr += 1
+        if cntr == 209:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(savgol_filter(a, 3, 2), "-", alpha=0.7, label="Diabetic Retina")
+            break
+    generator = br.instance_from_binaries_generator(
+        [InputList.healthy_training_files[4]]
+    )
+    cntr = 0
+    for elem in generator:
+        if cntr == 0:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(savgol_filter(a, 3, 2), "-", alpha=0.7, label="Healthy Background")
+        cntr += 1
+        if cntr == 209:
+            a = elem[0][:, 0, 0, 0]
+            plt.plot(savgol_filter(a, 3, 2), "-", alpha=0.7, label="Healthy Retina")
+            break
+    plt.legend(loc="upper right")
     plt.savefig('test.png')
 
 def test_decide_label():
