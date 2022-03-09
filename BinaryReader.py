@@ -75,9 +75,11 @@ class BinaryReader:
                         #if evaluate:
                         #    self._create_info_map(filepath, [i, j])
                         label = self._decide_label(i, j, label)
-                        # logging.info(f"Position: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
+                        logging.info(f"Position: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
                         f.seek(index, os.SEEK_SET)
-                        yield self._create_instance(f, self.instance_size), float(label)
+                        a, b = self._create_instance(f, self.instance_size), float(label)
+                        logging.info(f"Position: After: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
+                        yield a, int(b)
 
     def create_dataset(self, file_list, deterministic) -> tf.data.Dataset:
         """
@@ -97,8 +99,11 @@ class BinaryReader:
         #         .prefetch(tf.data.AUTOTUNE)
         #     dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
-        dataset = tf.data.Dataset.from_tensor_slices([(data, str(label)) for data, label in file_list]) \
-            .interleave(lambda x:
+        dataset = tf.data.Dataset.from_tensor_slices([(data, str(label)) for data, label in file_list])
+        if not deterministic:
+            dataset = dataset.shuffle(len(file_list))
+
+        dataset = dataset.interleave(lambda x:
                         tf.data.Dataset.from_generator(
                             self.instance_from_binaries_generator, args=[[(x[0], x[1])]],
                             output_signature=(tf.TensorSpec(
@@ -118,14 +123,14 @@ class BinaryReader:
         :param file_list:
         :return:
         """
+        np.random.shuffle(file_list)
         split_at = self._one_or_80_percent(file_list)
         training_files = file_list[:split_at]
         validation_files = file_list[split_at:]
-        print(validation_files)
-        got_healthy = any([elem[1] == 0 for elem in validation_files])
-        got_diabetic = any([elem[1] == 1 for elem in validation_files])
-        if not (got_healthy and got_diabetic):
-            print("Warning: Only files of one Dataset are present in the Validation Dataset")
+        #got_healthy = any([elem[1] == 0 for elem in validation_files])
+        #got_diabetic = any([elem[1] == 1 for elem in validation_files])
+        #if not (got_healthy and got_diabetic):
+        #    print("Warning: Only files of one Dataset are present in the Validation Dataset")
         return training_files, validation_files
 
     def _one_or_80_percent(self, file_list):

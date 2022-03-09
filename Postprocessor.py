@@ -8,7 +8,7 @@ class Postprocessing:
         self.prediction_results = prediction_results
         self.belonging_labels = belonging_labels
 
-    def binary_confusion_matrix(self, threshold=0.5):
+    def binary_confusion_matrix(self, threshold=0):
         """
 
         :param threshold: Threshold at what probability an instance is decided as being diabetic
@@ -16,6 +16,7 @@ class Postprocessing:
         """
         self.prediction_results = self.prediction_results > threshold
         cm = confusion_matrix(self.belonging_labels, self.prediction_results, labels=(0, 1))
+        print(cm)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm,
                                       display_labels=(0, 1))
         fig, ax = plt.subplots(figsize=(10, 10))

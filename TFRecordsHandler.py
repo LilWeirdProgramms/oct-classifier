@@ -67,6 +67,7 @@ def parse_tfr_element(element):
   # get our 'feature'-- our image -- and reshape it appropriately
   feature = tf.io.parse_tensor(raw_image, out_type=tf.uint16)
   feature = tf.reshape(feature, shape=[ascan, bscan, cscan, channels])
+  label = tf.reshape(label, shape=[1])
   return (feature, label)
 
 
@@ -80,10 +81,9 @@ def get_dataset_small(filenames):
   )
   return dataset
 
-
-
 import BinaryReader
 import InputList
+import os
 
 def lala():
   br = BinaryReader.BinaryReader()
@@ -91,16 +91,25 @@ def lala():
   for instance in bag.take(1):
       write_images_to_tfr_short(*instance)
 
+def tfrecords_real_writer():
+    br = BinaryReader.BinaryReader()
+    for file in file_list:
+        i = 0
+        dirname = os.path.join(data_location, f"tfrecords/{file[1]}_{os.path.basename(file[0][-9:-4])}")
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
+        for instance, label, b_position, c_position in br.instance_from_binaries_generator([file]):
+            filename = os.path.join(dirname, f"b{b_position}_c{c_position}")
+            write_images_to_tfr_short(instance, int(label), filename=filename)
 
+def to_file():
+    data_location = "/mnt/NewHDD"
+    file_list = []
+    with open('healthy_training_files.txt', 'r') as f:
+        for item in f.read().splitlines():
+            file_list.append((item, 0))
+    with open('diabetic_training_files.txt', 'r') as f:
+        for item in f.read().splitlines():
+            file_list.append((item, 1))
+    tfrecords_real_writer()
 
-# feature_dim = 784
-#
-# def dict2tuple(feat):
-#     return feat["raw_image"], feat["label"]
-#
-# ds2 = tf.data.TFRecordDataset(["images.tfrecords"]) \
-#           .batch(1) \
-#           .apply(tf.data.experimental.parse_example_dataset({
-#               "raw_image": tf.io.FixedLenFeature([], dtype=tf.string),
-#               "label": tf.io.FixedLenFeature([], dtype=tf.int64)
-#           })).map(dict2tuple)

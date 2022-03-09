@@ -9,7 +9,7 @@ class ImageVisualizer:
     """
 
     def __init__(self,
-                 results,
+                 results = None,
                  info_map: list = None,
                  background_image_path: str = None,
                  image_size=(2044, 2048),
@@ -35,8 +35,9 @@ class ImageVisualizer:
         results_grid = self._create_grid()
         if self.background_image:
             self._preprocess_background()
-            results_grid = Image.blend(self.background_image, results_grid, 0.2)
-        self._place_results_in_grid(results_grid)
+            results_grid = Image.blend(self.background_image, results_grid, 0.4)
+        if any(self.results):
+            self._place_results_in_grid(results_grid)
         image_path = f"results/instance_probability_{name}.png"
         results_grid.save(image_path)
 

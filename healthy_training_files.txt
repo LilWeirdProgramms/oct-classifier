@@ -1,0 +1,16 @@
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H2/links/x2/raw_1536x2048x2044x2_25201.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H2/links/mx2/raw_1536x2048x2044x2_24825.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H2/rechts/x2/raw_1536x2048x2044x2_24362.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H2/rechts/mx2/raw_1536x2048x2044x2_24012.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H1/links/mx2/raw_1536x2048x2044x2_17129.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H1/links/x2/raw_1536x2048x2044x2_20472.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H1/rechts/x2/raw_1536x2048x2044x2_15780.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H1/rechts/mx2/raw_1536x2048x2044x2_15453.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H4/raw_1536x2048x2045x2_12417.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H4/raw_1536x2048x2045x2_13025.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H5/raw_1536x2048x2045x2_17600.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H5/raw_1536x2048x2045x2_18044.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H6/rechts/raw_1536x2048x2045x2_8042.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H6/links/raw_1536x2048x2045x2_8920.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H7/rechts/raw_1536x2048x2045x2_9772.bin
+/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/H7/links/raw_1536x2048x2045x2_10419.bin

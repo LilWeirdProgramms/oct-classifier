@@ -81,7 +81,7 @@ tboard_callback = keras.callbacks.TensorBoard(log_dir=logs,
 my_callbacks = [
     CustomCallback(),
     model_checkpoint_callback,
-    history_checkpoint_callback,
     last_epoch_callback,
+    history_checkpoint_callback,
     tboard_callback
 ]
