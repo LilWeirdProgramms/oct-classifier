@@ -1,61 +1,75 @@
+import keras.regularizers
 import numpy as np
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, Permute, Dense, Conv3D, MaxPooling3D, Flatten, Dropout
+from tensorflow.keras.layers import Input, Permute, Dense, Conv3D, MaxPooling3D, Flatten, Dropout, BatchNormalization, Activation, AlphaDropout, AveragePooling3D, Conv1D
 from tensorflow.keras.layers.experimental.preprocessing import Normalization
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, Adadelta
 from tensorflow import keras
 import tensorflow as tf
+from sklearn.decomposition import PCA
 
-def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=True):
+def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=False):
     #dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
     
-    init = "glorot_normal"
-    binit = "glorot_normal"
+    init = "lecun_normal"
+    binit = "lecun_normal"
     
     #input
     inp = Input(shape=input_size, dtype="float32")
-    conv_inp = inp
-    if normalizer:
-        conv_inp = normalizer(conv_inp)
 
-    #settings
-    m = 2
+    pinp = tf.keras.layers.Reshape((input_size[0] * input_size[1], input_size[2],
+                             input_size[3]))(inp)  # inp= (a, b, c, channel), output (a*b, c, channel)
+    pinp = tf.keras.layers.SpatialDropout2D(0.5, data_format="channels_last")(pinp)
+    pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
+    pinp = tf.keras.layers.GaussianNoise(0.3)(pinp)
 
-    if reconstruction:
-        size_doutp = np.int32(np.floor(input_size[0]/2))
-        dense1 = Permute((4, 2, 3, 1))(conv_inp) #dense layer connects input densely along last dimension; reorder dimesions
-        dense1 = Dense(size_doutp, activation="relu", use_bias=False, kernel_initializer=init, bias_initializer=binit)(dense1)
-        conv_inp = Permute((4, 2, 3, 1))(dense1)
+    conv = pinp
+    conv = Conv3D(32, 3, strides=1, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                 , kernel_regularizer=keras.regularizers.l2(l2=0.01)
+                  )\
+        (conv)
+    conv = AlphaDropout(0.2)(conv)
+    conv = MaxPooling3D((4, 2, 2))(conv)
+    conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    conv = AlphaDropout(0.2)(conv)
+    # conv = Conv3D(64, 2, strides=2 ,activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+    #              # , kernel_regularizer=keras.regularizers.l1()
+    #               )(conv)
+    conv = MaxPooling3D((4, 2, 2))(conv)
+    # conv = Conv3D(32, 3, strides=2, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit
+    #              , kernel_regularizer=keras.regularizers.l2()
+    #               )(conv)
+    conv = Conv3D(128, 3, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                 , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    conv = AlphaDropout(0.2)(conv)
+    conv = MaxPooling3D((4, 2, 2))(conv)
+    conv = Conv3D(256, 3, strides=1, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                 , kernel_regularizer=keras.regularizers.l2()
+                  )\
+        (conv)
+    #conv = AlphaDropout(0.2)(conv)
+    #conv = AveragePooling3D(2)(conv)
+    #conv = Dropout(0.2)(conv)
+    conv = Flatten()(conv)
+    #dense = Dropout(0.2)(flat)
+    # conv = AlphaDropout(0.2)(conv)
+    # denseO = Dense(128, activation="selu", use_bias=True, kernel_initializer=init, bias_initializer=binit
+    #                , kernel_regularizer=keras.regularizers.l2()
+    #                )(conv)
+    #denseO = AlphaDropout(0.3)(conv)
+    denseO = Dense(1, activation="linear", use_bias=True
+                   , kernel_regularizer=keras.regularizers.l2()
+                   )(conv)
 
-    conv = conv_inp
-    conv = Conv3D(16, 3, activation="relu", padding="same", kernel_initializer=init,
-                  bias_initializer=binit, kernel_regularizer=keras.regularizers.l1(l1=0.01))(conv)
-    conv = Conv3D(16, 3, activation="relu", padding="same", kernel_initializer=init,
-                  bias_initializer=binit, kernel_regularizer=keras.regularizers.l1(l1=0.01))(conv)
-    conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
-    #create nconv downsampling layers
-    conv = Conv3D(32, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
-        (conv)
-    conv = Conv3D(32, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
-        (conv)
-    conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
-    conv = Dropout(0.2)(conv)
-    conv = Conv3D(64, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
-        (conv)
-    conv = Conv3D(64, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit)\
-        (conv)
-    conv = MaxPooling3D(pool_size=(4, 4, 4))(conv)
-    #flatten and fully connected layer
-    flat = Flatten()(conv)
-    denseO = Dense(1, activation="linear", use_bias=True, kernel_initializer=init, bias_initializer=binit,
-                   kernel_regularizer=keras.regularizers.l1(l1=0.001))(flat)
-    
-    #output
     outp = denseO
 
     #model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(lr=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True)
+    model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True), metrics=["accuracy"]
                   #,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
     )
     model.summary()
@@ -63,7 +77,179 @@ def classiRaw3D(input_size, normalizer: Normalization = None, reconstruction=Tru
     return model
 
 
-def classiRaw3Dold(input_size, normalizer: Normalization = None, reconstruction=True):
+def classiRaw3Dmnist(input_size, normalizer: Normalization = None, reconstruction=False):
+    # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
+
+    init = "lecun_normal"
+    binit = "lecun_normal"
+
+    # input
+    inp = Input(shape=input_size, dtype="float32")
+    conv = inp
+
+    # pinp = tf.keras.layers.Reshape((input_size[0] * input_size[1], input_size[2],
+    #                                 input_size[3]))(inp)  # inp= (a, b, c, channel), output (a*b, c, channel)
+    # pinp = tf.keras.layers.SpatialDropout2D(0.1, data_format="channels_last")(pinp)
+    # pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
+    # pinp = tf.keras.layers.GaussianNoise(0.1)(conv)
+    # conv = pinp
+
+    conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    conv = AlphaDropout(0.2)(conv)
+    conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(128, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    conv = AlphaDropout(0.2)(conv)
+    conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(256, 3, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    conv = Flatten()(conv)
+    denseO = Dense(1, activation="linear", use_bias=True
+                   , kernel_regularizer=keras.regularizers.l2()
+                   )(conv)
+    outp = denseO
+
+    # model
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
+                  metrics=["accuracy"]
+                  # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+                  )
+    model.summary()
+
+    return model
+
+def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconstruction=False):
+    # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
+
+    init = tf.keras.initializers.RandomNormal(stddev=0.1)
+    binit = tf.keras.initializers.RandomNormal(stddev=0.1)
+
+    # input
+    inp = Input(shape=input_size, dtype="float32")
+    conv = inp
+
+    # pinp = tf.keras.layers.Reshape((input_size[0] * input_size[1], input_size[2],
+    #                                 input_size[3]))(inp)  # inp= (a, b, c, channel), output (a*b, c, channel)
+    # pinp = tf.keras.layers.SpatialDropout2D(0.1, data_format="channels_last")(pinp)
+    # pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
+    #pinp = tf.keras.layers.GaussianNoise(0.1)(conv)
+    #conv = pinp
+
+    conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    # conv = AlphaDropout(0.2)(conv)
+    conv = Dropout(0.2)(conv)
+    conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(128, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                 , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    # conv = Dropout(0.2)(conv)
+    conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(256, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    # conv = Dropout(0.2)(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    # conv = Conv3D(512, 3, strides=1, activation="relu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l2()
+    #               )(conv)
+    conv = Flatten()(conv)
+    denseO = Dense(1, activation="linear"
+                   , kernel_regularizer=keras.regularizers.l2()
+                   )(conv)
+    outp = denseO
+
+    # model
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
+                  metrics=["accuracy"]
+                  # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+                  )
+    model.summary()
+
+    return model
+
+def classiRaw3Dmnist_1dconv(input_size, normalizer: Normalization = None, reconstruction=False):
+    # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
+
+    init = tf.keras.initializers.RandomNormal(stddev=0.1)
+    binit = tf.keras.initializers.RandomNormal(stddev=0.1)
+    # TODO: Don't use glorot normal; maybe also not random Normal
+
+    # input
+    inp = Input(shape=input_size, dtype="float32")
+    conv = inp
+
+    # pinp = tf.keras.layers.Reshape((input_size[0] * input_size[1], input_size[2],
+    #                                 input_size[3]))(inp)  # inp= (a, b, c, channel), output (a*b, c, channel)
+    # pinp = tf.keras.layers.SpatialDropout2D(0.1, data_format="channels_last")(pinp)
+    # pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
+    #pinp = tf.keras.layers.GaussianNoise(0.1)(conv)
+    #conv = pinp
+
+    # conv = tf.keras.layers.Reshape((input_size[0] * input_size[1] * input_size[2], input_size[3]))(conv)
+    conv = Permute((2, 3, 1, 4))(conv)
+    conv = Conv1D(32, 16, strides=16, activation="linear", padding="valid", kernel_initializer=init, use_bias=False
+              , kernel_regularizer=keras.regularizers.l2()
+              )(conv)
+    conv = Permute((1, 2, 4, 3))(conv)
+    conv = Conv1D(16, 32, strides=32, activation="linear", padding="same", kernel_initializer=init, use_bias=False
+              , kernel_regularizer=keras.regularizers.l2()
+              )(conv)
+    conv = Permute((4, 1, 2, 3))(conv)
+    # conv = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(conv)
+    # conv = tf.keras.layers.Reshape((16, 16, 16, 1))(conv)
+    conv = Dropout(0.2)(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(64, 3, strides=3, activation="selu", padding="same", kernel_initializer=init
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    # conv = AlphaDropout(0.2)(conv)
+    conv = Dropout(0.2)(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(128, 3, strides=3, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                 , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
+    # conv = Dropout(0.2)(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    # conv = Conv3D(256, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l2()
+    #               )(conv)
+    # conv = Dropout(0.2)(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    # conv = Conv3D(512, 3, strides=1, activation="relu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l2()
+    #               )(conv)
+    conv = Flatten()(conv)
+    denseO = Dense(1, activation="linear"
+                   , kernel_regularizer=keras.regularizers.l2()
+                   )(conv)
+    outp = denseO
+
+    # model
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
+                  metrics=["accuracy"]
+                  # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+                  )
+    model.summary()
+
+    return model
+
+def classiRaw3Dold2(input_size, normalizer: Normalization = None, reconstruction=False):
     # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
 
     init = "glorot_normal"
@@ -77,30 +263,49 @@ def classiRaw3Dold(input_size, normalizer: Normalization = None, reconstruction=
 
     # settings
     m = 2
-    nconv = 7
 
     if reconstruction:
         size_doutp = np.int32(np.floor(input_size[0] / 2))
         dense1 = Permute((4, 2, 3, 1))(
-            conv_inp)  # dense layer connects input densely along last dimension; reorder dimesions
+            conv_inp)  # dense layer connects input densely along last dimension; reorder dimesions; (None, 102, 102, 1536) * (1536, 736)
         dense1 = Dense(size_doutp, activation="relu", use_bias=False, kernel_initializer=init, bias_initializer=binit)(
             dense1)
         conv_inp = Permute((4, 2, 3, 1))(dense1)
 
     conv = conv_inp
+    conv = Conv3D(16, 3, activation="relu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l1(l1=0.001)
+                  )(conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(16, 3, activation="relu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l1(l1=0.001)
+                  )(conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(16, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit) \
+        (conv)
+    conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
     # create nconv downsampling layers
-    for i in range(1, nconv + 1):
-        conv = Conv3D(16 * m * int(i ** 0.5), 3, activation="relu", padding="same", kernel_initializer=init,
-                      bias_initializer=binit) \
-            (conv)
-        if not i % 2:
-            conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
-
-    conv = MaxPooling3D(pool_size=(3, 3, 3))(conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(32, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit) \
+        (conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(32, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit) \
+        (conv)
+    conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
+    # conv = Dropout(0.2)(conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(64, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit) \
+        (conv)
+    conv = BatchNormalization()(conv)
+    conv = Conv3D(64, 3, activation="relu", padding="same", kernel_initializer=init, bias_initializer=binit) \
+        (conv)
+    # conv = MaxPooling3D(pool_size=(4, 4, 4))(conv)
     # flatten and fully connected layer
     flat = Flatten()(conv)
     denseO = Dense(1, activation="linear", use_bias=True, kernel_initializer=init, bias_initializer=binit,
-                   kernel_regularizer=keras.regularizers.l1(l1=0.01))(flat)
+                   kernel_regularizer=keras.regularizers.l1(l1=0.001))(flat)
 
     # output
     outp = denseO
@@ -112,6 +317,111 @@ def classiRaw3Dold(input_size, normalizer: Normalization = None, reconstruction=
                   )
     model.summary()
 
+    return model
+
+def classiRaw3Dold(input_size, normalizer: Normalization = None, reconstruction=False):
+    # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
+
+    init = "glorot_normal"
+    binit = "glorot_normal"
+
+    # input
+    inp = Input(shape=input_size, dtype="float32")
+    conv_inp = inp
+    if normalizer:
+        conv_inp = normalizer(conv_inp)
+
+    # settings
+    m = 1
+    nconv = 3
+
+    if reconstruction:
+        size_doutp = np.int32(np.floor(input_size[0] / 2))
+        dense1 = Permute((4, 2, 3, 1))(
+            conv_inp)  # dense layer connects input densely along last dimension; reorder dimesions
+        dense1 = Dense(size_doutp, activation="relu", use_bias=True, kernel_initializer=init,
+                       bias_initializer=binit
+                       )(
+            dense1)
+        conv_inp = Permute((4, 2, 3, 1))(dense1)
+
+    conv = conv_inp
+    # create nconv downsampling layers
+    for i in range(1, nconv + 1):
+        #conv = BatchNormalization()
+        conv = Conv3D(16 * m * i, 3, activation="relu", padding="same", kernel_initializer=init, use_bias=True,
+                      bias_initializer=binit
+                      ) \
+            (conv)
+        conv = MaxPooling3D(pool_size=(2, 2, 2))(conv)
+
+    # flatten and fully connected layer
+    flat = Flatten()(conv)
+    denseO = Dense(1, activation="linear", use_bias=True, kernel_initializer=init,
+                   bias_initializer=binit
+                   #,kernel_regularizer=keras.regularizers.l1(l1=0.01)
+                   )(flat)
+
+    # output
+    outp = denseO
+
+    # model
+    model = Model(inputs=inp, outputs=outp)
+    model.compile(optimizer=Adam(lr=0.0001), loss=keras.losses.BinaryCrossentropy(from_logits=True)
+                  # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+                  )
+    model.summary()
+
+    return model
+
+
+def test_model(inp):
+    ## input layer
+    input_layer = Input(inp)
+    ## convolutional layers
+    x = Conv3D(filters=8, kernel_size=(3, 3, 3), use_bias=False, padding='Same')(input_layer)
+    x = BatchNormalization()(x)
+    x = Activation("relu")(x)
+    x = Conv3D(filters=16, kernel_size=(3, 3, 3), use_bias=False, padding='Same')(x)
+    x = BatchNormalization()(x)
+    x = Activation("relu")(x)
+
+    ## Pooling layer
+    x = MaxPooling3D(pool_size=(2, 2, 2))(x)  # the pool_size (2, 2, 2) halves the size of its input
+
+    ## convolutional layers
+    x = Conv3D(filters=32, kernel_size=(3, 3, 3), use_bias=False, padding='Same')(x)
+    x = BatchNormalization()(x)
+    x = Activation("relu")(x)
+    x = Conv3D(filters=64, kernel_size=(3, 3, 3), use_bias=False, padding='Same')(x)
+    x = BatchNormalization()(x)
+    x = Activation("relu")(x)
+
+    ## Pooling layer
+    x = MaxPooling3D(pool_size=(2, 2, 2))(x)
+    x = Dropout(0.25)(x)  # No more BatchNorm after this layer because we introduce Dropout
+
+    x = Flatten()(x)
+
+    ## Dense layers
+    x = Dense(units=4096, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(units=1024, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    output_layer = Dense(units=1, activation='linear')(x)
+
+    ## define the model with input layer and output layer
+    model = Model(inputs=input_layer, outputs=output_layer, name="3D-CNN")
+    model_name = model.name
+
+    # https://machinelearningmastery.com/adam-optimization-algorithm-for-deep-learning/
+    # "Adam is a replacement optimization algorithm for stochastic gradient descent for training deep learning models which combines the best properties of the AdaGrad and RMSProp algorithms.
+    # It provides an optimization algorithm that can handle sparse gradients on noisy problems. The default configuration parameters do well on most problems.""
+    model.compile(loss=keras.losses.BinaryCrossentropy(from_logits=True),
+                  optimizer=Adam(1e-4),  # default: lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0
+                  metrics=['acc'])
+
+    model.summary()
     return model
 
 

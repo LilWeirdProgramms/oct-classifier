@@ -65,10 +65,10 @@ class BinaryReader:
         :return:
         """
         # self.info_map = []
-        for i in range(self.instance_size.ctimes):
-            for j in range(self.instance_size.btimes):  # TODO: Make 2 explicit
-                for filepath, label in list_of_files:
-                    with open(filepath, "rb") as f:  # TODO: trenn die Ausschneidelogik von der lese Logik
+        for filepath, label in list_of_files:
+            with open(filepath, "rb") as f:  # TODO: trenn die Ausschneidelogik von der lese Logik
+                for i in range(self.instance_size.ctimes):
+                    for j in range(self.instance_size.btimes):  # TODO: Make 2 explicit
                         index = self.file_data_type.itemsize * (j * self.instance_size.bsize +
                                                                 2 * i * self.instance_size.csize * self.bscan_length) * \
                                 self.ascan_length
@@ -79,7 +79,10 @@ class BinaryReader:
                         f.seek(index, os.SEEK_SET)
                         a, b = self._create_instance(f, self.instance_size), float(label)
                         logging.info(f"Position: After: {i * self.instance_size.btimes + j}, In File: {f.tell()}")
-                        yield a, int(b)
+                        yield a, int(b)  # , j, i
+
+    def instance_from_binaries_generator_wrapper(self, list_of_files, evaluate=False) -> Generator:
+        pass
 
     def create_dataset(self, file_list, deterministic) -> tf.data.Dataset:
         """

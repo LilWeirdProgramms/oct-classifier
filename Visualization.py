@@ -44,9 +44,9 @@ class ImageVisualizer:
     def _place_results_in_grid(self, unplaced_image):
         if not self.info_Map:
             sorted_results = sorted((self.results[:, 0]))
-            bound = 10
+            bound = 60
             upper_bound = sorted_results[-bound]
-            lower_bound = sorted_results[10]
+            lower_bound = sorted_results[bound]
             for i, instance_prop in enumerate(self.results[:, 0]):
                 instance_position = [i % self.instance_size[2], i // self.instance_size[3]]
                 placement = (instance_position[0] * self.instance_size[1] + 2,

@@ -12,6 +12,8 @@ class CustomCallback(keras.callbacks.Callback):
 
         self.keys = list(logs.keys())
         self.values = dict.fromkeys(self.keys, [])
+        plt.figure(figsize=(10, 8))
+
 
     # def on_batch_end(self, batch, logs=None):
     #     self.x.append(batch)
@@ -45,12 +47,11 @@ class CustomCallback(keras.callbacks.Callback):
         self.loss.append(logs["loss"])
         clear_output(wait=True)
         self.val_loss.append(logs["val_loss"])
-        plt.figure(figsize=(10, 8))
         ax1 = plt.subplot2grid((1,1), (0,0), colspan=1, rowspan=1)
         ax1.plot(self.x, self.loss, lw=4, label="Training")
         ax1.plot(self.x, self.val_loss, lw=4, label="Validation")
         ax1.legend(fontsize=16)
-        ax1.set_xlabel("Epoche", fontsize=16)
+        ax1.set_xlabel("Epoch", fontsize=16)
         ax1.set_ylabel("Loss", fontsize=16)
         plt.tight_layout()
         plt.show()
@@ -77,6 +78,10 @@ logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 tboard_callback = keras.callbacks.TensorBoard(log_dir=logs,
                                               histogram_freq=1,
                                               profile_batch='1,20')
+logs = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S_mnist")
+tboard_callback_mnist = keras.callbacks.TensorBoard(log_dir=logs,
+                                              histogram_freq=1,
+                                              profile_batch='1,20')
 
 my_callbacks = [
     CustomCallback(),
@@ -84,4 +89,10 @@ my_callbacks = [
     last_epoch_callback,
     history_checkpoint_callback,
     tboard_callback
+]
+
+my_mnist_callbacks = [
+    CustomCallback(),
+    history_checkpoint_callback,
+    tboard_callback_mnist,
 ]
