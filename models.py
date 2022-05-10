@@ -119,7 +119,7 @@ def classiRaw3Dmnist(input_size, normalizer: Normalization = None, reconstructio
     model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
                   metrics=["accuracy"]
                   # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
-                  )
+    )
     model.summary()
 
     return model
@@ -182,8 +182,8 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
 def classiRaw3Dmnist_1dconv(input_size, normalizer: Normalization = None, reconstruction=False):
     # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
 
-    init = tf.keras.initializers.RandomNormal(stddev=0.1)
-    binit = tf.keras.initializers.RandomNormal(stddev=0.1)
+    init = tf.keras.initializers.HeNormal()
+    binit = tf.keras.initializers.HeNormal()
     # TODO: Don't use glorot normal; maybe also not random Normal
 
     # input
@@ -199,14 +199,10 @@ def classiRaw3Dmnist_1dconv(input_size, normalizer: Normalization = None, recons
 
     # conv = tf.keras.layers.Reshape((input_size[0] * input_size[1] * input_size[2], input_size[3]))(conv)
     conv = Permute((2, 3, 1, 4))(conv)
-    conv = Conv1D(32, 16, strides=16, activation="linear", padding="valid", kernel_initializer=init, use_bias=False
+    conv = Conv1D(16, 16, strides=16, activation="selu", padding="valid", kernel_initializer=init, use_bias=False
               , kernel_regularizer=keras.regularizers.l2()
               )(conv)
     conv = Permute((1, 2, 4, 3))(conv)
-    conv = Conv1D(16, 32, strides=32, activation="linear", padding="same", kernel_initializer=init, use_bias=False
-              , kernel_regularizer=keras.regularizers.l2()
-              )(conv)
-    conv = Permute((4, 1, 2, 3))(conv)
     # conv = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(conv)
     # conv = tf.keras.layers.Reshape((16, 16, 16, 1))(conv)
     conv = Dropout(0.2)(conv)

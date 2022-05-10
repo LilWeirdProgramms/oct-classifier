@@ -40,12 +40,12 @@ def image_eval(name):
     train_dataset, val_dataset, test_dataset = mnist_data.create_dataset()
     set_to_eval = test_dataset
     model = k.models.load_model(f'savedModels/mnist{name}')
-    plt.figure()
-    plt.imshow(model.layers[2].get_weights()[0].reshape(32, 16))
-    plt.show()
-    plt.figure()
-    plt.plot(model.layers[2].get_weights()[0].flatten()[:64])
-    plt.show()
+    # plt.figure()
+    # plt.imshow(model.layers[2].get_weights()[0].reshape(32, 16))
+    # plt.show()
+    # plt.figure()
+    # plt.plot(model.layers[2].get_weights()[0].flatten()[:64])
+    # plt.show()
     model_output = model.predict(
         set_to_eval.batch(1),
         verbose=1,

@@ -13,9 +13,9 @@ class MNISTDataHandler:
     """
 
     def __init__(self, data_size=2000, frequency=False):
-        use_every = 2
+        use_every = 1
         self.use_every = use_every
-        self.bagging = False
+        self.bagging = True
         with h5py.File("data/3d_mnist/full_dataset_vectors.h5", "r") as hf:
             self.x_train = hf["X_train"][:data_size].reshape((data_size, 16, 16, 16, 1))[::use_every]
             self.y_train = hf["y_train"][:data_size].reshape((data_size,))[::use_every]
