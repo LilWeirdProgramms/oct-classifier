@@ -14,7 +14,8 @@ class ImageVisualizer:
                  background_image_path: str = None,
                  image_size=(2044, 2048),
                  instance_size=(28, 23, 89, 73),  #TODO
-                 bag_number=0):
+                 bag_number=0,
+                 crop=False):
         """
 
         :param results: Large Array of the prediction results of the NN. Probabably size 89*73
@@ -30,6 +31,7 @@ class ImageVisualizer:
         self.image_size = image_size
         self.instance_size = instance_size
         self.bag_number = bag_number
+        self.crop = crop
 
     def plot_results_map(self, name=1):
         results_grid = self._create_grid()
@@ -38,15 +40,15 @@ class ImageVisualizer:
             results_grid = Image.blend(self.background_image, results_grid, 0.4)
         if any(self.results):
             self._place_results_in_grid(results_grid)
-        image_path = f"results/instance_probability_{name}.png"
+        image_path = f"{name}"
         results_grid.save(image_path)
 
     def _place_results_in_grid(self, unplaced_image):
         if not self.info_Map:
             sorted_results = sorted((self.results[:, 0]))
-            bound = 60
-            upper_bound = sorted_results[-bound]
-            lower_bound = sorted_results[bound]
+            bound = 0.2
+            upper_bound = sorted_results[-int(bound*len(sorted_results))]
+            lower_bound = sorted_results[int(bound*len(sorted_results))]
             for i, instance_prop in enumerate(self.results[:, 0]):
                 instance_position = [i % self.instance_size[2], i // self.instance_size[3]]
                 placement = (instance_position[0] * self.instance_size[1] + 2,
@@ -57,7 +59,7 @@ class ImageVisualizer:
                 ImageDraw.Draw(unplaced_image).text(
                     placement,  # Coordinates
                     str(int(instance_prop*10)),
-                    #str(int(instance_position[1])),
+                    # str(int(i)),
                     color  # Color
                 )
         else:
@@ -85,6 +87,12 @@ class ImageVisualizer:
 
     def _preprocess_background(self):
         self.background_image = Image.open(self.background_image).convert("RGB")
+        if self.crop:
+            #self.background_image = self.background_image[self.crop[0]: -self.crop[0], self.crop[1], -self.crop[1]]
+            self.background_image = self.background_image.crop((self.crop[0], self.crop[1],
+                                                                self.background_image.height - self.crop[0],
+                                                                self.background_image.width - self.crop[1]))
+            bla = 1
 
     @staticmethod
     def raw_path_to_image(image_path: str):

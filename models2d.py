@@ -15,6 +15,20 @@ def my_resnet_model(input_shape, trainable=False):
     model = compile_model(inp, out)
     return model
 
+def my_mobile_net_model(input_shape, trainable=False):
+    inp, out = input_layer(input_shape)
+
+    resnet_model = k.applications.MobileNetV3Small(weights=None, include_top=False, input_shape=input_shape, classes=1, dropout_rate=0)
+    resnet_model.trainable = trainable
+    out = resnet_model(out)
+
+    out = k.layers.Flatten()(out)
+    out = k.layers.Dropout(0.2)(out)
+    out = k.layers.Dense(1, kernel_regularizer=k.regularizers.l2())(out)
+    model = compile_model(inp, out)
+    return model
+
+
 
 # TODO: TRY 50/50 classes
 def image2d_full(input_shape):

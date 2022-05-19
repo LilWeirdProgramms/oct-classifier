@@ -7,14 +7,15 @@ import numpy as np
 
 class ImageDataset(DatasetBaseClass):
 
-    def __init__(self, image_type="angio", learning_type="supervised", augmentation=True, pseduocolor=False,
+    def __init__(self, image_type="angio", learning_type="supervised", augmentation=True, pseduocolor=False, image=True,
                  val_split=0.2):
         """
 
-        :param image_type: Must be one of ["angio", "struct", "combined"]
+        :param image_type: Must be one of ["angio", "struct", "combined", "overlay"]
         :param learning_type: Must be one of ["supervised", "mil"]
         """
         super().__init__(val_split)
+        self.is_image = image
         self.image_type = image_type
         self.learning_type = learning_type
         self.augmentation = augmentation
@@ -33,7 +34,7 @@ class ImageDataset(DatasetBaseClass):
 
     def get_training_files(self):
         converted_input_files = list(map(self._create_image_path_from_raw, InputList.training_files))
-        converted_input_files = super().remove_invalid_file_paths(converted_input_files)
+        converted_input_files = super().remove_invalid_file_paths(converted_input_files, self.is_image)
         return converted_input_files
 
     def get_test_files(self):
@@ -50,6 +51,9 @@ class ImageDataset(DatasetBaseClass):
         elif self.image_type == "combined":
             front_ident = InputList.struct_ident[0]
             back_indent = InputList.struct_ident[1]
+        elif self.image_type == "overlay":
+            front_ident = InputList.overlay_ident[0]
+            back_indent = InputList.overlay_ident[1]
         else:
             raise NotImplementedError("image_type of ImageDataset must be one of [angio, struct]")
         image_tuple = (raw_tuple[0].replace(InputList.binary_ident[0], front_ident).replace(InputList.binary_ident[1],

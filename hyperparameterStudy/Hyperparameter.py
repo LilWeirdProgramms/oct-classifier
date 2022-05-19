@@ -13,3 +13,5 @@ class Hyperparameter:
     augment: list
     noise: list
     repetition: list
+    residual: list
+    mil: list

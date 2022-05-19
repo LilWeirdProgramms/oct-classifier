@@ -23,8 +23,8 @@ class BinaryReader:
     """
     def __init__(self, validation_split=0.2, output_data_type=np.dtype('<u2')):
         self.ascan_length = 1536  # TODO: Make size explizit
-        self.bscan_length = 2047
-        self.cscan_length = 2045
+        self.bscan_length = 2048
+        self.cscan_length = 2044  # TODO vs 2047 2045
         self.validation_split = validation_split
         self.instance_size = self._decide_instance_size()
         self.file_data_type = np.dtype('<u2')
@@ -71,7 +71,7 @@ class BinaryReader:
                     for j in range(self.instance_size.btimes):  # TODO: Make 2 explicit
                         index = self.file_data_type.itemsize * (j * self.instance_size.bsize +
                                                                 2 * i * self.instance_size.csize * self.bscan_length) * \
-                                self.ascan_length
+                                self.ascan_length # TODO: 2 is wrong is it?
                         #if evaluate:
                         #    self._create_info_map(filepath, [i, j])
                         label = self._decide_label(i, j, label)

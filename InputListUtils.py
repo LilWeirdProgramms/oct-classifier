@@ -1,3 +1,5 @@
+import pandas as pd
+
 import InputList
 import re
 import os
@@ -12,7 +14,6 @@ def find_binaries(query, label, location=InputList._server_location):
     for folder in all_folders:
         if re.search(query, folder):
             my_diabetic_folder.append(folder)
-
     my_diabetic_files = []
     for path in [os.path.join(location, folder) for folder in my_diabetic_folder]:
         for path, subdirs, files in os.walk(path):
@@ -34,9 +35,9 @@ def __fill_healthy_input_list():
     InputList.training_files = file_list
 
 
-def __fill_diabetic_input_list():
+def __fill_diabetic_input_list(fill_from=r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$"):
     file_list = []
-    file_list.extend(find_binaries(r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$", 0))
+    file_list.extend(find_binaries(fill_from, 0))
     InputList.training_files = file_list
 
 
@@ -91,16 +92,20 @@ def copy_images_to_data():
         shutil.copyfile(file, destination)
 
 
-def copy_images_to_data2():
-    __fill_diabetic_input_list()
-    id = image2d.ImageDataset()
+def copy_images_to_data2(image_class="diabetic", image_type="angio", copy_from=r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$",
+                         copy_to="new_files", remove_wrong_dim=True):
+    __fill_diabetic_input_list(copy_from)
+
+    id = image2d.ImageDataset(image_type, image=remove_wrong_dim)
     diabetic_image_list = id.get_training_files()
+
     for file, label in diabetic_image_list:
         file_name = os.path.basename(file)
-        destination = os.path.join("data/diabetic_images/test_files", file_name)
+        destination = os.path.join(f"data/{image_class}_images/{copy_to}", file_name)
         if os.path.exists(destination):
-            raise FileExistsError(f"File {file_name} would be overwritten")
-        shutil.copyfile(file, destination)
+            print(f"File {file_name} would be overwritten by {file}")
+        else:
+            shutil.copyfile(file, destination)
 
 
 def copy_images_to_data3(type, image_type="angio"):
@@ -108,7 +113,6 @@ def copy_images_to_data3(type, image_type="angio"):
         __fill_healthy_input_list()
     if type == "diabetic":
         __fill_diabetic_input_list()
-
     id = image2d.ImageDataset(image_type)
     found = id.get_training_files()
     present = get_file_list_from_folder(f"data/{type}_images", -1)
@@ -121,12 +125,32 @@ def copy_images_to_data3(type, image_type="angio"):
             shutil.copyfile(found_file, destination)
 
 
-def copy_enf_files_to_retinas(type):
-    for path, subdirs, files in os.walk(f"data/{type}_images"):
-        if 'trash_files' in subdirs:
-            subdirs.remove('trash_files')  # don't visit CVS directories
-        for name in files:
-            print(os.path.join(path, name))
+import pandas
+from collections import defaultdict
+def copy_enf_files_to_retinas():
+    merge_data_in_dict = defaultdict(lambda: [])
+    for path, subdirs, files in os.walk(f"data"):
+        # if 'trash_files' in subdirs:
+        #     subdirs.remove('trash_files')  # don't visit CVS directories
+        for file_path in files:
+            file_name = os.path.basename(file_path)
+            if "1536x2048x204" in file_name:
+                data_name = file_name.split(".")[0].split("_")[-1]
+                merge_data_in_dict[data_name].append(file_name)
+    ret_cntr, struc_cntr, onh_cntr = 0, 0, 0
+    for key in merge_data_in_dict:
+        for name in merge_data_in_dict[key]:
+            if "retina" in name:
+                ret_cntr += 1
+            if "enf" in name:
+                struc_cntr += 1
+            if "onh" in name:
+                onh_cntr += 1
+    print(f"Number of Samples: {len(merge_data_in_dict)}")
+    print(f"Number of Retina Images: {ret_cntr}")
+    print(f"Number of Struct Images: {struc_cntr}")
+    print(f"Number of ONH Overlays: {onh_cntr}")
+
 
 import typing
 import pathlib
@@ -146,4 +170,7 @@ if __name__ == "__main__":
     #create_retina_file_lists()
     #create_raw_file_lists()
     #copy_images_to_data3("diabetic", "angio")
-    copy_images_to_data3("healthy")
+    #copy_enf_files_to_retinas("diabetic")
+    #copy_images_to_data3("diabetic", "struct")
+    #copy_images_to_data2(image_type="overlay", remove_wrong_dim=False)
+    copy_enf_files_to_retinas()

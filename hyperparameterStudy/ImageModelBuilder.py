@@ -16,18 +16,19 @@ class ImageModel:
         self.reduction = None
         self.first_layer_nodes = None
         self.binit = None
+        self.residual = False
         self.convert_string_to_par()
 
-    def model(self, output_to=None):
+    def model(self, output_to=None, input_shape=(1444, 1448, 1)):
         init, binit = self.initilizer()
-        inp = k.layers.Input(shape=(1444, 1448, 1))
+        inp = k.layers.Input(shape=input_shape)
         out = inp
         if self.firstdropout:
             out = k.layers.Dropout(0.2)(out)
         for i in range(1, self.num_layers + 1):
-            if not i % 2 and self.batchnorm:
-                out = k.layers.BatchNormalization()(out)
-            out = k.layers.Conv2D(self.first_layer_nodes * i,
+            if self.residual:
+                out_short = out
+            out = k.layers.Conv2D(self.first_layer_nodes,
                                   3,
                                   strides=self.stride,
                                   activation=self.activation,
@@ -36,6 +37,10 @@ class ImageModel:
                                   bias_initializer=binit,
                                   kernel_regularizer=self.regularizer
                                   )(out)
+            if not i % 2 and self.batchnorm:
+                out = k.layers.BatchNormalization()(out)
+            if self.residual:
+                out = k.layers.Add()([out, out_short])
             if self.ave_pool:
                 out = k.layers.AveragePooling2D(2)(out)
             if self.max_pool:
@@ -82,7 +87,7 @@ class ImageModel:
                     self.batchnorm = True
                 case "selu":
                     self.activation = "selu"
-                case "lay3" | "lay4" | "lay6" | "lay7":
+                case "lay3" | "lay4" | "lay6" | "lay7" | "lay8" | "lay5":
                     self.num_layers = int(parameter[-1])
                 case "no_drop":
                     self.firstdropout = False
@@ -113,10 +118,16 @@ class ImageModel:
                     self.first_layer_nodes = 32
                 case "n64":
                     self.first_layer_nodes = 64
+                case "n8":
+                    self.first_layer_nodes = 8
+                case "n128":
+                    self.first_layer_nodes = 128
                 case "zeros":
                     self.binit = "zeros"
                 case "same":
                     self.binit = "same"
+                case "residual":
+                    self.residual = True
 
 
 
