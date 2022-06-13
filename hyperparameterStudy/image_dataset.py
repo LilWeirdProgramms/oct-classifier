@@ -6,7 +6,7 @@ import logging
 import random
 import numpy as np
 import skimage.io as sk_io
-
+import os
 
 class ImageDataset():
     def __init__(self, data_list=None, validation_split=True, mil=False):
@@ -22,6 +22,18 @@ class ImageDataset():
         self.mil_list = []
         self.create_dataset_from_file_list()
         #self.train_data: np.ndarray = None
+
+    @staticmethod
+    def load_file_list(test_or_train="test"):
+        input_file_list = ImageDataset.input_list_from_folder(f"data/diabetic_images/{test_or_train}_files", 1) \
+                          + ImageDataset.input_list_from_folder(f"data/healthy_images/{test_or_train}_files", 0)
+        return input_file_list
+
+    @staticmethod
+    def input_list_from_folder(folder, label):
+        files = os.listdir(folder)
+        input_file_list = [(os.path.join(folder, file), label) for file in files]
+        return input_file_list
 
     @staticmethod
     def get_file_list():

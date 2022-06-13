@@ -19,7 +19,7 @@ def choose_parent_name(folder):
 
 
 file_list = []
-file_list.extend(find_binaries(r"^H([3-9][0-9])", 0))
+file_list.extend(find_binaries(r"^H([3-9][4-9])", 0))
 # if os.path.exists(hdd1 := "/media/julius/My Passport/MOON1e"):
 #     file_list.extend(
 #         find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=hdd1)

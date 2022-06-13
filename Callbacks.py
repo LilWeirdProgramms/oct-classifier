@@ -125,3 +125,17 @@ def hyper_image_callback(name: str):
                                   separator=",",
                                   append=True),
     ]
+
+def mil_pooling_callback(name: str):
+    return [
+        keras.callbacks.ModelCheckpoint(
+            filepath=f"results/hyperparameter_study/mil/models/{name}",
+            save_weights_only=False,
+            monitor='val_accuracy',
+            mode='max',
+            save_best_only=True
+        ),
+        keras.callbacks.CSVLogger(f"results/hyperparameter_study/histories/{name}.csv",
+                                  separator=",",
+                                  append=True),
+    ]

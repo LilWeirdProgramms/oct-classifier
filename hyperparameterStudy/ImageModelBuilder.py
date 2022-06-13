@@ -1,5 +1,5 @@
 import tensorflow.keras as k
-
+import mil_pooling
 
 class ImageModel:
     def __init__(self, string_list_of_par: tuple):

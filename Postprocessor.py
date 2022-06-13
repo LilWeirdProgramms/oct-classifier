@@ -7,6 +7,7 @@ import numpy as np
 import skimage.transform as sk_tr
 import matplotlib
 
+
 class Postprocessing:
 
     def __init__(self, prediction_results=None, belonging_labels=None, postprocessing_model: k.Model = None):
@@ -39,7 +40,6 @@ class Postprocessing:
             rs_image = np.squeeze(Postprocessing.min_max_scale(image_label_pair[0]), axis=2)
             rs_heatmap = Postprocessing.min_max_scale(heatmap)
             rs_heatmap = sk_tr.resize(rs_heatmap, rs_image.shape)
-
             fig, ax = plt.subplots(1, 3, figsize=(40, 12))
             fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0]}", fontsize=30)
             im1 = ax[0].imshow(image_label_pair[0], cmap="gray")
@@ -57,8 +57,17 @@ class Postprocessing:
             fig.savefig(image_path)
             plt.close()
 
+    def only_grad_cam_overlay(self, image, visualize_layer=0):
+        layer_name_vis = self.get_conv_layer_name(visualize_layer)
+        heatmap, class_out = self.grad_cam(np.expand_dims(image, axis=0), layer_name_vis)
+        heatmap = np.maximum(heatmap, 0)
+        rs_image = np.squeeze(Postprocessing.min_max_scale(image), axis=2)
+        rs_heatmap = Postprocessing.min_max_scale(heatmap)
+        rs_heatmap = sk_tr.resize(rs_heatmap, rs_image.shape, mode="edge", order=3)
+        return rs_image, rs_heatmap
+
     def top_10_percent(self, heatmap: np.ndarray):
-        threshold = 0.5 * np.max(heatmap)
+        threshold = 0.32 * np.max(heatmap)
         heatmap[heatmap < threshold] = 0
         return heatmap
 

@@ -115,7 +115,7 @@ def copy_images_to_data3(type, image_type="angio"):
         __fill_diabetic_input_list()
     id = image2d.ImageDataset(image_type)
     found = id.get_training_files()
-    present = get_file_list_from_folder(f"data/{type}_images", -1)
+    present = get_file_list_from_folder(f"data/{type}_images", -1, only_training=False)
     search_dict = dict.fromkeys([os.path.basename(file) for file, label in present])
     for found_file, label in found:
         try:
@@ -154,13 +154,13 @@ def copy_enf_files_to_retinas():
 
 import typing
 import pathlib
-def get_file_list_from_folder(file_list_folder: typing.Union[str, pathlib.Path], label):
+def get_file_list_from_folder(file_list_folder: typing.Union[str, pathlib.Path], label, only_training=True):
     path_list = []
     for dirpath, subdirs, filenames in os.walk(file_list_folder):
-        if 'trash_files' in subdirs:
-            subdirs.remove('trash_files')  # don't visit CVS directories
-        if 'test_files' in subdirs:
-            subdirs.remove('test_files')  # don't visit CVS directories
+        if 'trash_files' in subdirs and only_training:
+            subdirs.remove('trash_files')
+        if 'test_files' in subdirs and only_training:
+            subdirs.remove('test_files')
         for f in filenames:
             path_list.append((os.path.abspath(os.path.join(dirpath, f)), label))
     return path_list
@@ -171,6 +171,6 @@ if __name__ == "__main__":
     #create_raw_file_lists()
     #copy_images_to_data3("diabetic", "angio")
     #copy_enf_files_to_retinas("diabetic")
-    #copy_images_to_data3("diabetic", "struct")
+    copy_images_to_data3("healthy")
     #copy_images_to_data2(image_type="overlay", remove_wrong_dim=False)
-    copy_enf_files_to_retinas()
+    #copy_enf_files_to_retinas()

@@ -9,6 +9,7 @@ from hyper_postprocessing import HyperPostprocessor
 import os
 import models2d
 import tensorflow as tf
+from mil_postprocessing import MilPostprocessor
 
 hyperparameter_list = Hyperparameter(
     downsample=["ave_pool", "max_pool"],  # , "stride"
@@ -80,7 +81,6 @@ def resnet_test():
         plt.imshow(elem[0].numpy()[:,:,0])
 
 
-
 import matplotlib.pyplot as plt
 def eval_dataset(plot_dataset, i):
     k = 0
@@ -95,6 +95,12 @@ def eval_dataset(plot_dataset, i):
         k += 1
 
 
+def do_mil_stuff():
+    pass
+    # predict train data
+    # predict val data
+
+
 def train_model(model, plot_dataset, my_dataset_class, model_name, class_weights):
     model.fit(plot_dataset.batch(2),
               validation_data=my_dataset_class.dataset_val.batch(1),
@@ -103,13 +109,34 @@ def train_model(model, plot_dataset, my_dataset_class, model_name, class_weights
               class_weight=class_weights)
     hp = HyperPostprocessor(model_name)
     hp.mil_model_postprocessing()
+    if True:
+        do_mil_stuff()
 
 def test_model():
-    model_name = "ave_pool_relu_lay4_no_drop_little_l2_global_ave_pooling_n32_zeros_augment_noise_second_residual_mil"
+    model_name = "ave_pool_relu_norm_lay4_no_drop_little_l2_flatten_n32_zeros_augment_noise_second_residual_mil"
     hp = HyperPostprocessor(model_name, mil=True)
     hp.mil_model_postprocessing()
 
+def postprocess_all(search_in_folder, mil=False):
+    my_model_names = os.listdir(search_in_folder)
+    parsed_model_names = []
+    for model_name in my_model_names:
+        parsed_model_names.append(model_name.replace("acc_", "").replace("loss_", "").replace("mil_pooling_", ""))
+    parsed_model_names = list(set(parsed_model_names))
+    file_list = ImageDataset.load_file_list("test")
+    mil_dataset = ImageDataset(data_list=file_list, validation_split=False, mil=True)
+    for model_name in parsed_model_names:
+        if mil:
+            hp = MilPostprocessor(model_name, mil_dataset, file_list)
+            hp.mil_postprocessing()
+        else:
+            hp = HyperPostprocessor(model_name)
+            hp.supervised_processing()
 
+
+
+#def eval_model():
 
 if __name__ == "__main__":
-    test_model()
+    postprocess_all(search_in_folder="results/hyperparameter_study/mil/models",
+                    mil=True)
