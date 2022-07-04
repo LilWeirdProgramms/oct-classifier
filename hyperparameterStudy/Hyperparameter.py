@@ -15,3 +15,7 @@ class Hyperparameter:
     repetition: list
     residual: list
     mil: list
+    crop: list
+    normalize: list
+    image_type: list
+

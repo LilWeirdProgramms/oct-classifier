@@ -11,7 +11,8 @@ class MilVisualizer:
                  instance_results: np.ndarray,
                  bag_result: np.ndarray,
                  attention_map: np.ndarray,
-                 max_min_prediction: tuple
+                 max_min_prediction: tuple,
+                 crop: int
                  ):
         """
 
@@ -22,7 +23,9 @@ class MilVisualizer:
         :param max_min_prediction: Tuple in Form (max, min) to normalize colorbar
         :return:
         """
-        self.background_image = plt.imread(background_image_tuple[0])[300:-300, 300:-300]
+        self.background_image = plt.imread(background_image_tuple[0])
+        if crop:
+            self.background_image = self.background_image[crop:-crop, crop:-crop]
         self.image_label = background_image_tuple[1]
         if attention_map is None:
             self.attention_map_resized = np.zeros(self.background_image.shape)
@@ -34,7 +37,7 @@ class MilVisualizer:
                                                (1.4 * np.max(np.abs(self.instance_prediction_resized)))
         self.max_min_prediction = max_min_prediction
 
-    def create_figure(self, save_at, attention=True):
+    def create_figure(self, save_at=None, attention=True):
         fig = plt.figure(figsize=(18, 18))
         plt.axis(False)
         plt.title(f"Ground Truth: {self.image_label}, Predicted: {self.bag_result}")
@@ -44,9 +47,11 @@ class MilVisualizer:
         plt.clim(cmin, cmax)
         plt.colorbar()
         plt.imshow(np.ones(self.background_image.shape), cmap="gray", alpha=self.attention_map_resized)
-        #fig.savefig(save_at)
-        #plt.close()
-        fig.show()
+        if save_at is None:
+            fig.show()
+        else:
+            fig.savefig(save_at)
+            plt.close()
 
     def get_color_limits(self):
         abs_max = np.max(np.abs(self.max_min_prediction))
@@ -71,6 +76,6 @@ if __name__ == "__main__":
     attention_map[2, 7] = 0.1
     attention_map[2, 8] = 0.1
     instance_prediction = np.random.randint(-5, 10, (10, 10))
-    vis = MilVisualizer(background_image_path, instance_results=instance_prediction, bag_result=2,
-                  attention_map=attention_map, max_min_prediction=(-10, 10))
+    vis = MilVisualizer(background_image_path, instance_results=instance_prediction, bag_result=np.array(2),
+                  attention_map=attention_map, max_min_prediction=(-10, 10), crop=200)
     vis.create_figure()

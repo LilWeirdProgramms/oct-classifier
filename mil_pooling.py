@@ -4,19 +4,31 @@ import tensorflow as tf
 import tensorflow.keras as k
 import os
 
+
 class MilPooling:
     def __init__(self, mil_prediction: np.ndarray, mil_pooling_model_name=None,
-                 mil_pooling_model_folder="results/hyperparameter_study/mil/models"):
+                 mil_pooling_model_folder="results/hyperparameter_study/mil/models",
+                 mil_pooling_type="weighted"):
         self.instance_prediction = mil_prediction.reshape((-1, 10, 10))
         self.instance_prediction = np.swapaxes(self.instance_prediction, 1, 2).reshape((-1, 100))
         self.model_name = mil_pooling_model_name
         self.model_location = mil_pooling_model_folder
-        # TODO: Make Dataset Output its elements in right order
+        if mil_pooling_type == "weighted":
+            self.conduct_pooling = self.weighted_average
+            self.get_attention_weights = self.instance_weights
+
+    # TODO: Make Dataset Output its elements in right order
+
+    def conduct_pooling(self):
+        pass
 
     def weighted_average(self):
         bag_predictions = np.sum(self.instance_prediction, axis=1)
         normalized_bag_predictions = bag_predictions - np.mean(bag_predictions)
         return normalized_bag_predictions
+
+    def instance_weights(self, prediction):
+        return np.ones((100, ))
 
     def shallow_mil_pooling(self):
         model = k.models.load_model(os.path.join(self.model_location, self.model_name))

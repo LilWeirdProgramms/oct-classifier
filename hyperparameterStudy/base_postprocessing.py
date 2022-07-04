@@ -3,19 +3,19 @@ import os
 import seaborn as sns
 import matplotlib.pyplot as plt
 import tensorflow.keras as k
-from image_dataset import ImageDataset
 from Postprocessor import Postprocessing
 import numpy as np
 import Visualization
-
+from sklearn import metrics
 
 class BasePostprocessor:
 
-    def __init__(self, model_name, path_root, file_list=None):
+    def __init__(self, model_name, path_root, file_list=None, history_path="results/hyperparameter_study"):
         self.model_name = model_name
         self.path_root = path_root
-        self.history_path = os.path.join("results/hyperparameter_study", f"histories/{self.model_name}.csv")
+        self.history_path = os.path.join(history_path, f"histories/{self.model_name}.csv")
         self.best_models_path = os.path.join(self.path_root, "models")
+        #self.best_models_path = "results/hyperparameter_study/best_model_image"
         if file_list is None:
             self.test_file_list = self.read_test_files()
         else:
@@ -47,8 +47,23 @@ class BasePostprocessor:
         fig.savefig(os.path.join(output_path, "history"))
         plt.close()
 
+    def plot_roc(self, output_path, prediction):
+        sns.set_theme()
+        fig = plt.figure(figsize=(7, 7))
+        labels = [label for path , label in self.test_file_list]
+        fpr, tpr, threshold = metrics.roc_curve(labels, prediction, pos_label=1)
+        auc = metrics.roc_auc_score(labels, prediction)
+        plt.plot(fpr, tpr)
+        plt.xlabel("False Positive Rate")
+        plt.ylabel("True Positive Rate")
+        plt.title(f"Receiver operating characteristic with AUC = {round(auc, 5)}")
+        fig.savefig(os.path.join(output_path, "roc_curve"))
+        plt.close()
+        fig.savefig(os.path.join(output_path, "history"))
+        plt.close()
+
     def create_prediction(self, model):
-        out = model.predict(self.test_ds.dataset_train.batch(1), verbose=1)
+        out = model.predict(self.test_ds.batch(1), verbose=1)
         return out
 
     def load_model(self, model_type):
@@ -61,11 +76,11 @@ class BasePostprocessor:
         sns.set_theme(style="white")
         mod_output_path = os.path.join(output_path, "grad_cam")
         postprocessor = Postprocessing(postprocessing_model=model)
-        postprocessor.grad_cam_images(self.test_ds.dataset_train,
+        postprocessor.grad_cam_images(self.test_ds,
                                       Postprocessing.create_name_list_from_paths(self.test_file_list),
                                       folder_path=mod_output_path)
 
-    def sort_prediction_into_folder(self, ident, qualify=False, prediction=None):
+    def sort_prediction_into_folder(self, ident, qualify=True, prediction=None):
         if qualify:
             success_or_failed_folder = self.evaluate_prediction(prediction)
         else:
@@ -85,7 +100,7 @@ class BasePostprocessor:
         """
         bag_predictions = bag_predictions.reshape((bag_predictions.size, ))
         only_a_bit_diabetic = ["27060", "18749", "14590"]
-        result_list = list(zip(bag_predictions, self.test_ds.data_list))
+        result_list = list(zip(bag_predictions, self.test_file_list))
         very_diabetic = sorted([one_elem for one_elem in result_list if one_elem[1][1] == 1 and
                                 not any(x in one_elem[1][0] for x in only_a_bit_diabetic)])
         very_diabetic_threshold = np.mean([number for number, _ in very_diabetic[:2]])
@@ -112,8 +127,12 @@ class BasePostprocessor:
             os.makedirs(grad_cam_path)
         return output_path
 
-    def save_prediction(self, prediction: np.ndarray, output_path):
-        np.savetxt(os.path.join(output_path, "prediction.csv"), prediction)
+    def save_prediction(self, prediction: np.ndarray, file_list, output_path):
+        save_lines = [f"{one_prediction}\t{ground_truth}\n" for
+         one_prediction, ground_truth in zip(prediction.flatten(), file_list)]
+        with open(os.path.join(output_path, "prediction.csv"), "w") as f:
+            f.writelines(save_lines)
+        #np.savetxt(os.path.join(output_path, "prediction.csv"), save_lines)
 
     def model_postprocessing(self, prediction, model, ident, qualify=True):
         raise NotImplementedError("This is Abstract Class!!1")

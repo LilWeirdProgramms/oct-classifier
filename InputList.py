@@ -35,7 +35,7 @@ angio_ident = ["retina", "png"]
 struct_ident = ["enf", "png"]
 overlay_ident = ["onh", "png"]
 
-_server_location = "/mnt/p_Zeiss/Projects/UWF OCTA/Clinical data/MOON1/"
+_server_location = "/mnt/p_Zeiss_Clin/Projects/UWF OCTA/Clinical data/MOON1/"
 _diabetic_location = _server_location
 _healthy_location = _server_location
 

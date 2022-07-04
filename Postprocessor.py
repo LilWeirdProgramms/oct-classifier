@@ -75,6 +75,7 @@ class Postprocessing:
     def min_max_scale(data): return (data - np.min(data)) / (np.max(data) - np.min(data))
 
     def grad_cam(self, input_data, layer_name):
+        #  TODO: This has to work with functional vgg Model! -> just make custom -> Graph is not connecting becaus of functional
         """
         Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
         :param input_shape:
@@ -84,7 +85,9 @@ class Postprocessing:
         """
         with tf.GradientTape() as tape:
             last_conv_layer = self.postprocessing_model.get_layer(layer_name)
-            grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output, last_conv_layer.output])
+            #last_conv_layer = self.postprocessing_model.layers[1].layers[3]
+            grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output
+                , last_conv_layer.output])
             model_out, last_conv_layer = grad_cam_model(input_data)
             class_out = model_out[:, tf.argmax(model_out[0])]
             grads = tape.gradient(class_out, last_conv_layer)
@@ -101,7 +104,13 @@ class Postprocessing:
                     return layer.name
                 else:
                     i += 1
-
+            if layer.__class__.__name__ == "Functional":
+                for sub_layer in layer.layers[::-1]:
+                    if sub_layer.__class__.__name__ == "Conv2D":
+                        if i == conv_layer_number:
+                            return sub_layer.name
+                        else:
+                            i += 1
 
     @staticmethod
     def create_name_list_from_paths(path_list):

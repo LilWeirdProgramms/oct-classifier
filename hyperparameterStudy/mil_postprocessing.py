@@ -10,26 +10,34 @@ import Visualization
 from base_postprocessing import BasePostprocessor
 import mil_pooling
 from mil_visualizer import MilVisualizer
+from PreprocessMILImageData import PreprocessMILImageData
+from PreprocessData import PreprocessData
+from PreprocessMultiChannelMILImageData import PreprocessMultiChannelMILImageData
 
-
+#  TODO: Make Instances apear in rigth order (evtl. sorted und instance descriptor an ende des file namens)
 class MilPostprocessor(BasePostprocessor):
 
-    def __init__(self, model_name, dataset, file_list):
+    def __init__(self, model_name, dataset, file_list, crop):
         super().__init__(model_name, "results/hyperparameter_study/mil", file_list)
-        self.test_ds = dataset
+        # TODO: confirm file list has the same order as test_ds
+        self.crop = crop
+        self.test_ds = dataset  # Dataset needs to be sorted such that the first 100 elements are the elements of the first bag
         self.mil_pooling_model_name = "mil_pooling_" + model_name
+        self.pooling_algo = None
 
     def mil_postprocessing(self):
-        for model_ident in ["acc_", "loss_"]:
-            model = self.load_model(model_ident)
+        #for model_ident in ["acc_", "loss_"]:
+        model_ident = ""
+        model = self.load_model(model_ident)
 
-            prediction = self.create_prediction(model)
-            prediction = prediction.reshape((-1, 10, 10))
-            prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))
+        prediction = self.create_prediction(model)
+        prediction = prediction.reshape((-1, 10, 10))
+        prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
 
-            pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name)
-            bag_prediction = pooling_algo.shallow_mil_pooling()
-            self.model_postprocessing(prediction, bag_prediction, model_ident)
+        self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
+                                                   mil_pooling_type="weighted")  # TODO
+        bag_prediction = self.pooling_algo.conduct_pooling()
+        self.model_postprocessing(prediction, bag_prediction, model_ident)
 
     def model_postprocessing(self, instance_predictions, bag_predictions, ident, qualify=True):
         """
@@ -42,6 +50,7 @@ class MilPostprocessor(BasePostprocessor):
         """
         save_at = self.sort_prediction_into_folder(ident, qualify=qualify, prediction=bag_predictions)
         self.calc_accuracy(instance_predictions, bag_predictions, save_at)
+        self.plot_roc(save_at, bag_predictions)
         self.plot_mil_images(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
         self.plot_history(save_at)
 
@@ -53,8 +62,10 @@ class MilPostprocessor(BasePostprocessor):
             attention_weights = self.get_attention_weights(prediction)
             mil_vis = MilVisualizer(background_image_tuple=file, instance_results=prediction.reshape((10, 10))
                                     , bag_result=bag_prediction
-                                    , attention_map=attention_weights.reshape((10, 10))
-                                    , max_min_prediction=max_min_prediction)
+                                    #, attention_map=attention_weights.reshape((10, 10))
+                                    , attention_map=None
+                                    , max_min_prediction=max_min_prediction
+                                    , crop=self.crop)
             mil_vis.create_figure(save_at=os.path.join(output_path, os.path.basename(file[0])))
             # vis = Visualization.ImageVisualizer(results=prediction.reshape(10, 10).transpose().reshape(100, 1),
             #                                     image_size=(1400, 1400),
@@ -65,17 +76,16 @@ class MilPostprocessor(BasePostprocessor):
             #                      title=f"Predicted: {bag_prediction}, True: {data_label}")
 
     def get_attention_weights(self, prediction):
-        pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name)
-        attention_weights = pooling_algo.get_attention_weights(prediction.reshape((1, 100))).reshape((100, ))
+        attention_weights = self.pooling_algo.get_attention_weights(prediction.reshape((1, 100))).reshape((100, ))
         return attention_weights
 
     def calc_accuracy(self, instance_predictions, bag_predictions, output_to):
         score = 0
-        for predicted, truth in zip(instance_predictions, self.test_ds.dataset_train):
-            score += (predicted[0] > 0 and truth[1].numpy() == 1.) or (predicted[0] < 0 and truth[1].numpy() == 0.)
+        for predicted, truth in zip(instance_predictions.flatten(), self.test_ds):
+            score += (predicted > 0 and truth[1].numpy() == 1.) or (predicted < 0 and truth[1].numpy() == 0.)
         instance_accuracy = score / instance_predictions.size
         score = 0
-        for predicted, truth in zip(bag_predictions, self.test_ds.data_list):
+        for predicted, truth in zip(bag_predictions, self.test_file_list):
             score += (predicted > 0 and truth[1] == 1.) or (predicted < 0 and truth[1] == 0.)
         bag_accuracy = score / bag_predictions.size
         with open(os.path.join(output_to, "test_accuracy.txt"), "w") as f:
@@ -84,10 +94,24 @@ class MilPostprocessor(BasePostprocessor):
 
 if __name__ == "__main__":
     os.chdir("../")
-    model_name = "ave_pool_relu_lay4_no_drop_little_l2_global_ave_pooling_n32_zeros_augment_noise_second_residual_mil"
-    file_list = ImageDataset.load_file_list("test")
-    mil_dataset = ImageDataset(data_list=file_list, validation_split=False, mil=True)
-    hp = MilPostprocessor(model_name, mil_dataset, file_list)
+    data_type = "test"
+    model_name = "ave_pool_selu_lay5_little_drop_little_l2_global_ave_pooling_n32_zeros_afalse_noise_norm_im_lvl_residual_mil_crop_normalize_structure"
+    file_list = PreprocessData.load_file_list(data_type, angio_or_structure="structure")
+    pid = PreprocessMILImageData(input_file_list=file_list, rgb=False, crop=300, data_type=data_type)
+    #pid.preprocess_data_and_save()
+    ds = pid.create_dataset_for_calculation()
+
+
+    visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="images")
+    visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
+                                                                        int(file[0].split("_")[-1][:-4])))
+    hp = MilPostprocessor(model_name, ds, visualize_file_list, crop=300)
     hp.mil_postprocessing()
+    if "structure" in model_name or "combined" in model_name:
+        visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="structure")
+        visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
+                                                                            int(file[0].split("_")[-1][:-4])))
+        hp = MilPostprocessor(model_name, ds, visualize_file_list, crop=300)
+        hp.mil_postprocessing()
 
 # Instane and Bag Accuracy are criteria. Sivere vs not sivere cases is criteria.

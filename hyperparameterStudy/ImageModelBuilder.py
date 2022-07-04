@@ -22,13 +22,32 @@ class ImageModel:
     def model(self, output_to=None, input_shape=(1444, 1448, 1)):
         init, binit = self.initilizer()
         inp = k.layers.Input(shape=input_shape)
-        out = inp
+        out = k.layers.Conv2D(self.first_layer_nodes,
+                                  3,
+                                  strides=self.stride,
+                                  activation=self.activation,
+                                  padding="same",
+                                  kernel_initializer=init,
+                                  bias_initializer=binit,
+                                  kernel_regularizer=self.regularizer
+                                  )(inp)
+
         if self.firstdropout:
             out = k.layers.Dropout(0.2)(out)
         for i in range(1, self.num_layers + 1):
-            if self.residual:
+            if self.residual and i % 3:
                 out_short = out
-            out = k.layers.Conv2D(self.first_layer_nodes,
+            additional_nodes = 1 + (i // 3)
+            out = k.layers.Conv2D(self.first_layer_nodes * additional_nodes,
+                                  3,
+                                  strides=self.stride,
+                                  activation=self.activation,
+                                  padding="same",
+                                  kernel_initializer=init,
+                                  bias_initializer=binit,
+                                  kernel_regularizer=self.regularizer
+                                  )(out)
+            out = k.layers.Conv2D(self.first_layer_nodes * additional_nodes,
                                   3,
                                   strides=self.stride,
                                   activation=self.activation,
@@ -39,22 +58,26 @@ class ImageModel:
                                   )(out)
             if not i % 2 and self.batchnorm:
                 out = k.layers.BatchNormalization()(out)
-            if self.residual:
+            if self.residual and i % 3:
                 out = k.layers.Add()([out, out_short])
-            if self.ave_pool:
-                out = k.layers.AveragePooling2D(2)(out)
-            if self.max_pool:
-                out = k.layers.MaxPooling2D(2)(out)
+            if i < self.num_layers:
+                if self.ave_pool:
+                    out = k.layers.AveragePooling2D(2)(out)
+                if self.max_pool:
+                    out = k.layers.MaxPooling2D(2)(out)
         out = self.reduction(out)
         if self.seconddropout:
-            out = k.layers.Dropout(0.3)(out)
+            out = k.layers.Dropout(0.2)(out)
         out = k.layers.Dense(1, activation="linear")(out)
 
         model = k.Model(inp, out)
         model.summary(print_fn=output_to)
-        model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True),
+        model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True),  # , label_smoothing=0),
                       optimizer=k.optimizers.Adam(learning_rate=1e-4),
-                      metrics=["accuracy"])
+                      metrics=["accuracy"
+                                #,k.metrics.Precision(),
+                                #k.metrics.Recall()
+        ])
         return model
 
     def initilizer(self):

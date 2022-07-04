@@ -6,27 +6,31 @@ import logging
 import random
 import numpy as np
 import skimage.io as sk_io
+import skimage.color as sk_co
 import os
 
 class ImageDataset():
-    def __init__(self, data_list=None, validation_split=True, mil=False):
+    def __init__(self, data_list=None, validation_split=True, mil=False, rgb=False):
         if data_list is None:
             self.data_list = ImageDataset.get_file_list()
         else:
             self.data_list = data_list
+            if validation_split:
+                random.shuffle(self.data_list)
             #random.shuffle(self.data_list)
         self.mil = mil
         self.validation_split = validation_split
         self.dataset_train: tf.data.Dataset = None
         self.dataset_val: tf.data.Dataset = None
         self.mil_list = []
+        self.rgb = rgb
         self.create_dataset_from_file_list()
         #self.train_data: np.ndarray = None
 
     @staticmethod
-    def load_file_list(test_or_train="test"):
-        input_file_list = ImageDataset.input_list_from_folder(f"data/diabetic_images/{test_or_train}_files", 1) \
-                          + ImageDataset.input_list_from_folder(f"data/healthy_images/{test_or_train}_files", 0)
+    def load_file_list(test_or_train="test", angio_or_structure="images"):
+        input_file_list = ImageDataset.input_list_from_folder(f"data/diabetic_{angio_or_structure}/{test_or_train}_files", 1) \
+                          + ImageDataset.input_list_from_folder(f"data/healthy_{angio_or_structure}/{test_or_train}_files", 0)
         return input_file_list
 
     @staticmethod
@@ -104,11 +108,17 @@ class ImageDataset():
         id = image2d.ImageDataset()
         for path, label in self.data_list:
             image, _ = id._parse_image(path, label)
+            if self.rgb:
+               image = self.turn_into_rgb(image)
             x_train.append(image)
             y_train.append(label)
         x_train = np.array(x_train)
         y_train = np.array(y_train)
         self.create_dataset_from_array(x_train, y_train)
+
+    def turn_into_rgb(self, image):
+        image = sk_co.gray2rgb(np.squeeze(image.numpy()))
+        return image
 
     def create_dataset_from_array(self, data_array, label_array):
         if self.validation_split:
@@ -116,7 +126,6 @@ class ImageDataset():
             self.dataset_val = tf.data.Dataset.from_tensor_slices((data_array[-30:], label_array[-30:]))
         else:
             self.dataset_train = tf.data.Dataset.from_tensor_slices((data_array, label_array))
-
 
     @staticmethod
     def augment(image, label):
@@ -168,3 +177,15 @@ class ImageDataset():
         class_weights = {0: (1 / b) * (a + b) / 2, 1: (1 / a) * (a + b) / 2}
         logging.info(f"Got {len(label_list)} Training Samples of which {a} are diabetic and {b} are healthy")
         logging.info(f"Class Weights: {class_weights}")
+
+    @staticmethod
+    def calc_weights(ds):
+        label_list = []
+        for elem in ds:
+            label_list.append(elem[1].numpy())
+        a = sum(label_list)
+        b = len(label_list) - sum(label_list)
+        class_weights = {0: (1 / b) * (a + b) / 2, 1: (1 / a) * (a + b) / 2}
+        logging.info(f"Got {len(label_list)} Training Samples of which {a} are diabetic and {b} are healthy")
+        logging.info(f"Class Weights: {class_weights}")
+

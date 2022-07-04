@@ -5,10 +5,11 @@ import re
 import os
 import image2d
 
+server_location = "/mnt/p_Zeiss_Clin/Projects/UWF OCTA/Clinical data/MOON1"
 healthy_retina_location = "data/healthy_retina_file_list.txt"
 diabetic_retina_location = "data/diabetic_retina_file_list.txt"
 
-def find_binaries(query, label, location=InputList._server_location):
+def find_binaries(query, label, location=InputList._server_location, type="raw"):
     all_folders = os.listdir(location)
     my_diabetic_folder = []
     for folder in all_folders:
@@ -18,27 +19,29 @@ def find_binaries(query, label, location=InputList._server_location):
     for path in [os.path.join(location, folder) for folder in my_diabetic_folder]:
         for path, subdirs, files in os.walk(path):
             for file in files:
-                if re.search(r"raw_1536x2048x204.x2.+.bin$", file):
+                if re.search(rf"{type}_1536x2048x204.x2.+.bin$", file):
                     my_diabetic_files.append((os.path.join(path, file), label))
     return my_diabetic_files
 
 
-def __fill_healthy_input_list():
+def __fill_healthy_input_list(type="raw"):
     file_list = []
-    file_list.extend(find_binaries(r"^H([0-9]|[0-9][0-9])", 0))
+    file_list.extend(find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=server_location, type=type))
     if os.path.exists(hdd1 := "/media/julius/My Passport/MOON1e"):
         file_list.extend(
-            find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=hdd1))
+            find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=hdd1, type=type))
     if os.path.exists(hdd2 := "/media/julius/My Passport1/MOON1e"):
         file_list.extend(
-            find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=hdd2))
+            find_binaries(r"^H([0-9]|[0-9][0-9])", 0, location=hdd2, type=type))
     InputList.training_files = file_list
+    return file_list
 
 
-def __fill_diabetic_input_list(fill_from=r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$"):
+def __fill_diabetic_input_list(fill_from=r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$", type="raw"):
     file_list = []
-    file_list.extend(find_binaries(fill_from, 0))
+    file_list.extend(find_binaries(fill_from, 0, location=server_location, type=type))
     InputList.training_files = file_list
+    return file_list
 
 
 def read_from_file(path, label):
