@@ -18,4 +18,5 @@ class Hyperparameter:
     crop: list
     normalize: list
     image_type: list
+    label_smoothing: list
 

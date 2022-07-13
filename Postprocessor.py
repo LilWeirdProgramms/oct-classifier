@@ -36,19 +36,29 @@ class Postprocessing:
             name_list = range(500)
         for image_label_pair, ident in zip(dataset.take(num_elements), name_list):
             heatmap, class_out = self.grad_cam(np.expand_dims(image_label_pair[0], axis=0), layer_name_vis)
+            # heatmap, class_out = self.make_gradcam_heatmap(np.expand_dims(image_label_pair[0], axis=0))
             heatmap = np.maximum(heatmap, 0)
-            rs_image = np.squeeze(Postprocessing.min_max_scale(image_label_pair[0]), axis=2)
+            rs_image = Postprocessing.min_max_scale(image_label_pair[0])[..., 0]
             rs_heatmap = Postprocessing.min_max_scale(heatmap)
             rs_heatmap = sk_tr.resize(rs_heatmap, rs_image.shape)
-            fig, ax = plt.subplots(1, 3, figsize=(40, 12))
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
             fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0]}", fontsize=30)
-            im1 = ax[0].imshow(image_label_pair[0], cmap="gray")
-            plt.colorbar(im1, ax=ax[0])
-            im2 = ax[1].imshow(heatmap, cmap="hot")
-            plt.colorbar(im2, ax=ax[1])
-            ax[2].imshow(rs_image, cmap="gray")
-            im3 = ax[2].imshow(self.top_10_percent(rs_heatmap), cmap="hot", alpha=0.4)
-            plt.colorbar(im3, ax=ax[2])
+            # im1 = ax[0].imshow(rs_image, cmap="gray")
+            # plt.colorbar(im1, ax=ax[0])
+            # im2 = ax[1].imshow(heatmap, cmap="hot")
+            # plt.colorbar(im2, ax=ax[1])
+            ax.imshow(rs_image, cmap="gray")
+            im3 = ax.imshow(rs_heatmap, cmap="hot", alpha=0.4)
+            plt.colorbar(im3, ax=ax)
+            # fig, ax = plt.subplots(1, 3, figsize=(40, 12))
+            # fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0]}", fontsize=30)
+            # im1 = ax[0].imshow(rs_image, cmap="gray")
+            # plt.colorbar(im1, ax=ax[0])
+            # im2 = ax[1].imshow(heatmap, cmap="hot")
+            # plt.colorbar(im2, ax=ax[1])
+            # ax[2].imshow(rs_image, cmap="gray")
+            # im3 = ax[2].imshow(self.top_10_percent(rs_heatmap), cmap="hot", alpha=0.4)
+            # plt.colorbar(im3, ax=ax[2])
             if folder_path is None:
                 image_path = f"results/grad_cam/grad_cam{ident}.png"
             else:
@@ -74,8 +84,30 @@ class Postprocessing:
     @staticmethod
     def min_max_scale(data): return (data - np.min(data)) / (np.max(data) - np.min(data))
 
+    # def grad_cam(self, input_data, layer_name):
+    #     """
+    #     Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
+    #     :param input_shape:
+    #     :param input_data:
+    #     :param layer_name:
+    #     :return:
+    #     """
+    #     with tf.GradientTape() as tape:
+    #         last_conv_layer_name = self.postprocessing_model.get_layer(layer_name)
+    #         grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output
+    #             , last_conv_layer_name.output])
+    #         model_out, last_conv_layer = grad_cam_model(input_data)
+    #         tape.watch(last_conv_layer)
+    #         #tape.watch(last_conv_layer)
+    #         class_out = model_out[:, tf.argmax(model_out[0])]
+    #         #tape.watch(model_out)
+    #         grads = tape.gradient(class_out, last_conv_layer)
+    #         pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
+    #     heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer), axis=-1)
+    #     heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
+    #     return heatmap, class_out
+
     def grad_cam(self, input_data, layer_name):
-        #  TODO: This has to work with functional vgg Model! -> just make custom -> Graph is not connecting becaus of functional
         """
         Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
         :param input_shape:
@@ -83,18 +115,149 @@ class Postprocessing:
         :param layer_name:
         :return:
         """
+        #self.postprocessing_model = k.applications.vgg16.VGG16()
+        last_conv_layer = self.postprocessing_model.get_layer(layer_name)
+        last_conv_layer_model = k.Model(inputs=self.postprocessing_model.input, outputs=last_conv_layer.output)
+
+        # This is just weird I don't understand what I did here either (don't try to change it)
+        #classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+        classifier_layer_names = []
+        for layer in self.postprocessing_model.layers[::-1]:
+            if layer.name == last_conv_layer.name:
+                break
+            classifier_layer_names.append(layer.name)
+
+        classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+        x = classifier_input
+        for layer_name in classifier_layer_names[::-1]:
+            x = model.get_layer(layer_name)(x)
+        classifier_model = k.Model(classifier_input, x)
+
         with tf.GradientTape() as tape:
-            last_conv_layer = self.postprocessing_model.get_layer(layer_name)
-            #last_conv_layer = self.postprocessing_model.layers[1].layers[3]
-            grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output
-                , last_conv_layer.output])
-            model_out, last_conv_layer = grad_cam_model(input_data)
-            class_out = model_out[:, tf.argmax(model_out[0])]
-            grads = tape.gradient(class_out, last_conv_layer)
+            last_conv_layer_output = last_conv_layer_model(input_data)
+            tape.watch(last_conv_layer_output)
+
+            # 8. Get the class predictions and the class channel using the class index
+            preds = classifier_model(last_conv_layer_output)
+            grads = tape.gradient(preds, last_conv_layer_output)
             pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
-        heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer), axis=-1)
-        heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
-        return heatmap, class_out
+
+            # 9. Using tape, Get the gradient for the predicted class wrt the output feature map of last conv layer
+            heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+            heatmap = heatmap.numpy().reshape(last_conv_layer_output.shape[1:3].as_list())
+        return heatmap, preds
+
+    # def grad_cam(self, input_data, layer_name):
+    #     """
+    #     Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
+    #     :param input_shape:
+    #     :param input_data:
+    #     :param layer_name:
+    #     :return:
+    #     """
+    #     #self.postprocessing_model = k.applications.vgg16.VGG16()
+    #     last_conv_layer = self.postprocessing_model.get_layer(layer_name)
+    #     last_conv_layer_model = k.Model(inputs=self.postprocessing_model.input, outputs=last_conv_layer.output)
+    #
+    #     # This is just weird I don't understand what I did here either (don't try to change it)
+    #     #classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+    #     classifier_layer_names = []
+    #     for layer in self.postprocessing_model.layers[::-1]:
+    #         if layer.name == last_conv_layer.name:
+    #             break
+    #         classifier_layer_names.append(layer.name)
+    #
+    #     classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+    #     x = classifier_input
+    #     for layer_name in classifier_layer_names[::-1]:
+    #         x = model.get_layer(layer_name)(x)
+    #     classifier_model = k.Model(classifier_input, x)
+    #
+    #     with tf.GradientTape() as tape:
+    #         last_conv_layer_output = last_conv_layer_model(input_data)
+    #         tape.watch(last_conv_layer_output)
+    #
+    #         # 8. Get the class predictions and the class channel using the class index
+    #         preds = classifier_model(last_conv_layer_output)
+    #         class_channel = preds
+    #
+    #         # 9. Using tape, Get the gradient for the predicted class wrt the output feature map of last conv layer
+    #     grads = tape.gradient(
+    #         class_channel,
+    #         last_conv_layer_output
+    #     )
+    #     pooled_grads = k.backend.mean(grads, axis=(0, 1, 2, 3))
+    #     heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer.output), axis=-1)
+    #     heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
+    #     return heatmap, class_channel
+
+    def make_gradcam_heatmap(self,
+            img_array
+    ):
+        # # 1. Create a model that maps the input image to the activations of the last convolution layer - Get last conv layer's output dimensions
+        # last_conv_layer = self.postprocessing_model.get_layer("block2_conv2")
+        # last_conv_layer_model = k.Model(model.inputs, last_conv_layer.output)
+        #
+        # # 2. Create another model, that maps from last convolution layer to the final class predictions - This is the classifier model that calculated the gradient
+        # classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+        # classifier_layer_names = ["global_average_pooling2d", "dropout", "dense", "dense_1"]
+        # x = classifier_input
+        # for layer_name in classifier_layer_names:
+        #     x = model.get_layer(layer_name)(x)
+        # classifier_model = k.Model(classifier_input, x)
+
+        # 1. Create a model that maps the input image to the activations of the last convolution layer - Get last conv layer's output dimensions
+        last_conv_layer = self.postprocessing_model.get_layer("block2_conv2")
+        last_conv_layer_model = k.Model(model.inputs, last_conv_layer.output)
+
+        # 2. Create another model, that maps from last convolution layer to the final class predictions - This is the classifier model that calculated the gradient
+        classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+        for layer in self.postprocessing_model.layers[::-1]:
+            if layer.name == "block2_conv2":
+                break
+            print(layer.name)
+        classifier_layer_names = ["global_average_pooling2d", "dropout", "dense", "dense_1"]
+        x = classifier_input
+        for layer_name in classifier_layer_names:
+            x = model.get_layer(layer_name)(x)
+        classifier_model = k.Model(last_conv_layer.output, model.outputs)
+
+        with tf.GradientTape() as tape:
+            # Compute activations of the last conv layer and make the tape watch it
+            last_conv_layer_output = last_conv_layer_model(img_array)
+            tape.watch(last_conv_layer_output)
+
+            # 8. Get the class predictions and the class channel using the class index
+            preds = classifier_model(last_conv_layer_output)
+            class_channel = preds
+
+        # 9. Using tape, Get the gradient for the predicted class wrt the output feature map of last conv layer
+        grads = tape.gradient(
+            class_channel,
+            last_conv_layer_output
+        )
+
+        # 10. Calculate the mean intensity of the gradient over its feature map channel
+        pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+        last_conv_layer_output = last_conv_layer_output.numpy()[0]
+        pooled_grads = pooled_grads.numpy()
+
+        # # 11. Multiply each channel in feature map array by weight importance of the channel
+        # for i in range(pooled_grads.shape[-1]):
+        #     last_conv_layer_output[:, :, i] *= pooled_grads[i]
+        #
+        # # 12. The channel-wise mean of the resulting feature map is our heatmap of class activation
+        # heatmap = np.mean(last_conv_layer_output, axis=-1)
+        #
+        # # 13. Normalize the heatmap between [0, 1] for ease of visualization
+        # heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
+        #
+        # heatmaps.append({
+        #     "class_id": class_indices[index],
+        #     "heatmap": heatmap
+        # })
+
+        return heatmaps
 
     def get_conv_layer_name(self, conv_layer_number) -> str:
         i = 0
@@ -125,3 +288,41 @@ class Postprocessing:
             image_identifier = image_name.split(".")[-2].split("_")[-1]
             name_list.append(image_identifier)
         return name_list
+
+if __name__ == "__main__":
+    # with tf.device("cpu:0"):
+    from vgg16 import create_vgg_model
+    from PreprocessData import PreprocessData
+    from PreprocessImageData import PreprocessImageData
+    # model = create_vgg_model(input_shape=(2044, 2048, 3))
+    # model.layers[1].summary()
+    # model.summary()
+    # for layer in model.layers:
+    #     layer.trainable = True
+    model = k.models.load_model("/home/julius/dataspellprojects/oct-classifier/results/hyperparameter_study/supervised/models/acc_ave_pool_relu_norm_lay6_little_drop_little_l2_ave_pooling_little_n32_zeros_augment_noise")
+    #model.summary()
+
+    #tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
+    file_list = PreprocessData.load_file_list(test_or_train="test", angio_or_structure="images")
+    pid = PreprocessImageData(file_list, rgb=False, crop=300)
+    pid._buffer_folder = "tests/test"
+    pid.preprocess_data_and_save()
+    ds = pid.create_dataset_for_calculation()
+    # model.fit(ds.batch(1), epochs=2)
+
+    # TODO I HAVE TO CALL tf.keras.applications.vgg16.preprocess_input
+
+    #im, la = pid.preprocess_dataset(*file_list[0])
+    # for elem in ds.take(1):
+    #     plt.figure()
+    #     plt.imshow(elem[0][:, :, 0], "gray")
+    #     plt.figure()
+    #     plt.hist(elem[0].numpy().flatten(), bins=50)
+    # plt.show()
+
+    pp = Postprocessing(prediction_results=np.zeros((len(file_list), )),
+                        belonging_labels=np.zeros((len(file_list), )),
+                        postprocessing_model=model)
+    pp.grad_cam_images(dataset=ds, folder_path="tests/", visualize_layer=0)
+
+

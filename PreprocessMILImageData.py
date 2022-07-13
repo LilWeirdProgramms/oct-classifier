@@ -17,32 +17,27 @@ class PreprocessMILImageData(PreprocessImageData):
     def preprocess_dataset(self, file_name, label):
         image, label = self.file_name_to_image(file_name, label)
         image = self._preprocess_image(image.numpy())
-        #image = image.numpy()
         self.image_size = image.shape
         image = self.create_patches_from_image(image)
         return image, label
 
-    def create_patches_from_image(self, image):
+    def create_patches_from_image(self, image, channels=1):
         x_dim = round(np.floor(self.image_size[0]/10))*10
         y_dim = round(np.floor(self.image_size[1]/10))*10
         image = image[:x_dim, :y_dim, :]
         split_in_b = np.stack(np.split(image, 10))
-        return np.stack(np.split(split_in_b, 10, axis=2)).reshape((10*10, int(x_dim/10), int(y_dim/10), 1))\
+        return np.stack(np.split(split_in_b, 10, axis=2)).reshape((10*10, int(x_dim/10), int(y_dim/10), channels))\
             .astype("float32")
 
+    # TODO: Create multiprocessing pool
     def preprocess_data_and_save(self):
         self.delete_all_old()
         for file_name, label in self._input_file_list:
             image_stack, label = self.preprocess_dataset(file_name, label)
             for i, image in enumerate(image_stack):
-                new_file_name = f"{label}_{os.path.basename(file_name)[:-4]}_{i}.png"
+                new_file_name = f"{label}_{os.path.basename(file_name)[:-4]}_{i}"
                 new_file_path = os.path.join(self._buffer_folder, new_file_name)
                 self.save_preprocessed_dataset(new_file_path, image)
-
-    def delete_all_old(self):
-        folder = f"data/buffer/{self.data_type}"
-        for file in os.listdir(folder):
-            os.remove(os.path.join(folder, file))
 
     def sort_files(self, files):
         return sorted(files, key=lambda file: (int(round(float(file.split("_")[0]))),

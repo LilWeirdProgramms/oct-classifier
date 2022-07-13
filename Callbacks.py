@@ -131,7 +131,7 @@ def mil_pooling_callback(name: str):
         keras.callbacks.ModelCheckpoint(
             filepath=f"results/hyperparameter_study/mil/models/{name}",
             save_weights_only=False,
-            monitor='val_accuracy',
+            monitor='val_precision',
             mode='max',
             save_best_only=True
         ),
@@ -145,7 +145,7 @@ def vgg_callback(name: str):
         keras.callbacks.ModelCheckpoint(
             filepath=f"results/vgg/models/{name}",
             save_weights_only=False,
-            monitor='val_accuracy',
+            monitor='val_precision',
             mode='max',
             save_best_only=True
         ),

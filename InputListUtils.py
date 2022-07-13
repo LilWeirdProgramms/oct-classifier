@@ -23,6 +23,40 @@ def find_binaries(query, label, location=InputList._server_location, type="raw")
                     my_diabetic_files.append((os.path.join(path, file), label))
     return my_diabetic_files
 
+list_of_test_folders = ["D99", "D79", "D107", "D105", "D116", "D23", "D88", "D57", "H1", "H20", "H35"]
+def find_binaries_test_train(query, label, location=InputList._server_location, type="raw"):
+    all_folders = os.listdir(location)
+    my_diabetic_folder = []
+    for folder in all_folders:
+        if re.search(query, folder):
+            my_diabetic_folder.append(folder)
+    my_test_files = []
+    my_train_files = []
+    for folder in my_diabetic_folder:
+        path = os.path.join(location, folder)
+        if folder in list_of_test_folders:
+            for path, subdirs, files in os.walk(path):
+                for file in files:
+                    if re.search(rf"{type}_1536x2048x204.x2.+.bin$", file):
+                        my_test_files.append((os.path.join(path, file), label))
+        else:
+            for path, subdirs, files in os.walk(path):
+                for file in files:
+                    if re.search(rf"{type}_1536x2048x204.x2.+.bin$", file):
+                        my_train_files.append((os.path.join(path, file), label))
+    return my_train_files, my_test_files
+
+
+def get_test_train_file_lists(type="raw"):
+    train_bin_healthy, test_bin_healthy = find_binaries_test_train(r"^H([0-9]|[0-9][0-9])", 0,
+                                                           location=server_location, type=type)
+    train_bin_diabetic, test_bin_diabetic = find_binaries_test_train(r"^D([2-9][0-9]|[0-9][0-9][0-9])$", 1,
+                                                            location=server_location, type=type)
+    train_list = train_bin_healthy + train_bin_diabetic
+    test_list = test_bin_healthy + test_bin_diabetic
+    return train_list, test_list
+
+
 
 def __fill_healthy_input_list(type="raw"):
     file_list = []
@@ -39,7 +73,7 @@ def __fill_healthy_input_list(type="raw"):
 
 def __fill_diabetic_input_list(fill_from=r"^D([0-9]|[0-9][0-9]|[0-9][0-9][0-9])$", type="raw"):
     file_list = []
-    file_list.extend(find_binaries(fill_from, 0, location=server_location, type=type))
+    file_list.extend(find_binaries(fill_from, 1, location=server_location, type=type))
     InputList.training_files = file_list
     return file_list
 

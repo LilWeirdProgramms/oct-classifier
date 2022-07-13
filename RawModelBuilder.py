@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras as k
 import mil_pooling
 
-class ImageModel:
+class RawModel:
     def __init__(self, string_list_of_par: tuple):
         self.string_list_of_par = string_list_of_par
         self.ave_pool = False
@@ -21,10 +21,10 @@ class ImageModel:
         self.label_smoothing = False
         self.convert_string_to_par()
 
-    def model(self, output_to=None, input_shape=(1444, 1448, 1)):
+    def model(self, output_to=None, input_shape=(204, 204, 1536, 1)):
         init, binit = self.initilizer()
         inp = k.layers.Input(shape=input_shape)
-        out = k.layers.Conv2D(self.first_layer_nodes,
+        out = k.layers.Conv3D(self.first_layer_nodes,
                                   3,
                                   strides=self.stride,
                                   activation=self.activation,
@@ -39,7 +39,7 @@ class ImageModel:
             if self.residual:
                 out_short = out
             additional_nodes = i
-            out = k.layers.Conv2D(self.first_layer_nodes * additional_nodes,
+            out = k.layers.Conv3D(self.first_layer_nodes * additional_nodes,
                                   3,
                                   strides=self.stride,
                                   activation=self.activation,
@@ -48,7 +48,7 @@ class ImageModel:
                                   bias_initializer=binit,
                                   kernel_regularizer=self.regularizer
                                   )(out)
-            out = k.layers.Conv2D(self.first_layer_nodes * additional_nodes,
+            out = k.layers.Conv3D(self.first_layer_nodes * additional_nodes,
                                   3,
                                   strides=self.stride,
                                   activation=self.activation,
@@ -61,7 +61,7 @@ class ImageModel:
                 out = k.layers.BatchNormalization()(out)
             if self.residual:
                 out = k.layers.Add()([out, out_short])
-                out = k.layers.Conv2D(self.first_layer_nodes * (additional_nodes+1),
+                out = k.layers.Conv3D(self.first_layer_nodes * (additional_nodes+1),
                                       3,
                                       strides=self.stride,
                                       activation=self.activation,
@@ -72,9 +72,9 @@ class ImageModel:
                                       )(out)
             if i < self.num_layers:
                 if self.ave_pool:
-                    out = k.layers.AveragePooling2D(2)(out)
+                    out = k.layers.AveragePooling3D(2)(out)
                 if self.max_pool:
-                    out = k.layers.MaxPooling2D(2)(out)
+                    out = k.layers.MaxPooling3D(2)(out)
         out = self.reduction(out)
         if self.seconddropout:
             out = k.layers.Dropout(0.1)(out)
@@ -157,11 +157,11 @@ class ImageModel:
                 case "flatten":
                     self.reduction = lambda x: k.layers.Flatten()(x)
                 case "global_ave_pooling":
-                    self.reduction = lambda x: k.layers.GlobalAveragePooling2D()(x)
+                    self.reduction = lambda x: k.layers.GlobalAveragePooling3D()(x)
                 case "ave_pooling_little":
-                    self.reduction = lambda x: k.layers.Flatten()(k.layers.AveragePooling2D(3)(x))
+                    self.reduction = lambda x: k.layers.Flatten()(k.layers.AveragePooling3D(3)(x))
                 case "ave_pooling_large":
-                    self.reduction = lambda x: k.layers.Flatten()(k.layers.AveragePooling2D(6)(x))
+                    self.reduction = lambda x: k.layers.Flatten()(k.layers.AveragePooling3D(6)(x))
                 case "n32":
                     self.first_layer_nodes = 32
                 case "n64":
@@ -240,3 +240,8 @@ class Precision(tf.keras.metrics.Precision):
             super(Precision, self).update_state(y_true, y_pred, sample_weight)
 
 
+if __name__ == "__main__":
+    model_name = ["ave_pool", "selu", "lay4", "little_drop", "little_l2", "global_ave_pooling", "n32", "same", "afalse", "no_noise", "rep1", "residual", "mil", "cfalse", "normalize", "raw", "label_smoothing"]
+    model_class = RawModel(model_name)
+    model = model_class.model()
+    model.summary()

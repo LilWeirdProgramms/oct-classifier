@@ -46,6 +46,14 @@ class BasePostprocessor:
         plt.tight_layout()
         fig.savefig(os.path.join(output_path, "history"))
         plt.close()
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        ax.plot(history_df["epoch"], history_df["precision"])
+        ax.plot(history_df["epoch"], history_df["val_precision"])
+        ax.legend(["Training Precision", "Validation Precision"])
+        plt.tight_layout()
+        fig.savefig(os.path.join(output_path, "precision"))
+        plt.close()
+
 
     def plot_roc(self, output_path, prediction):
         sns.set_theme()
@@ -99,12 +107,12 @@ class BasePostprocessor:
         :return:
         """
         bag_predictions = bag_predictions.reshape((bag_predictions.size, ))
-        only_a_bit_diabetic = ["27060", "18749", "14590"]
+        only_a_bit_diabetic = ["5577", "6338", "18832", "27719", "28065"]
         result_list = list(zip(bag_predictions, self.test_file_list))
         very_diabetic = sorted([one_elem for one_elem in result_list if one_elem[1][1] == 1 and
                                 not any(x in one_elem[1][0] for x in only_a_bit_diabetic)])
         very_diabetic_threshold = np.mean([number for number, _ in very_diabetic[:2]])
-        same_images = ["15119", "14557"]
+        same_images = ["28477", "28810"]
         same_image_score = []
         score = 0
         for predicted, truth in result_list:

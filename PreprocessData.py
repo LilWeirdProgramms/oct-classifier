@@ -23,7 +23,7 @@ class PreprocessData:
         files = os.listdir(self._buffer_folder)
         files = self.sort_files(files)
         files_full_path = [os.path.join(self._buffer_folder, file) for file in files]
-        file_labels = [int(file.split("_")[0]) for file in files]
+        file_labels = [(int(file.split("_")[0]), ) for file in files]
         self.calculation_file_list = [(file, label) for file, label in zip(files_full_path, file_labels)]
         dataset = tf.data.Dataset.from_tensor_slices((files_full_path, file_labels))
         if self.data_type == "train":
@@ -38,6 +38,11 @@ class PreprocessData:
             return train_dataset, val_dataset
         dataset = dataset.map(self.parse_function)
         return dataset
+
+    def delete_all_old(self):
+        folder = f"data/buffer/{self.data_type}"
+        for file in os.listdir(folder):
+            os.remove(os.path.join(folder, file))
 
     def sort_files(self, files):
         return files
