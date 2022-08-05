@@ -108,17 +108,10 @@ my_image_callbacks = [
 def hyper_image_callback(name: str):
     return [
         keras.callbacks.ModelCheckpoint(
-            filepath=f"results/hyperparameter_study/supervised/models/acc_{name}",
+            filepath=f"results/hyperparameter_study/supervised/models/{name}",
             save_weights_only=False,
             monitor='val_accuracy',
             mode='max',
-            save_best_only=True
-        ),
-        keras.callbacks.ModelCheckpoint(
-            filepath=f"results/hyperparameter_study/supervised/models/loss_{name}",
-            save_weights_only=False,
-            monitor='val_loss',
-            mode='min',
             save_best_only=True
         ),
         keras.callbacks.CSVLogger(f"results/hyperparameter_study/histories/{name}.csv",
@@ -140,12 +133,28 @@ def mil_pooling_callback(name: str):
                                   append=True),
     ]
 
+def raw_callback(name: str):
+    return [
+        keras.callbacks.ModelCheckpoint(
+            filepath=f"results/hyperparameter_study/mil/models/{name}",
+            save_weights_only=False,
+            monitor='val_precision',
+            mode='max',
+            save_best_only=True
+        ),
+        keras.callbacks.CSVLogger(f"results/hyperparameter_study/histories/{name}.csv",
+                                  separator=",",
+                                  append=True),
+        tboard_callback
+    ]
+
+
 def vgg_callback(name: str):
     return [
         keras.callbacks.ModelCheckpoint(
             filepath=f"results/vgg/models/{name}",
             save_weights_only=False,
-            monitor='val_precision',
+            monitor='val_accuracy',
             mode='max',
             save_best_only=True
         ),

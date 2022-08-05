@@ -22,6 +22,7 @@ class PreprocessMILImageData(PreprocessImageData):
         return image, label
 
     def create_patches_from_image(self, image, channels=1):
+        # TODO: Invertier die Axen und streich die swap axis befehle danach raus
         x_dim = round(np.floor(self.image_size[0]/10))*10
         y_dim = round(np.floor(self.image_size[1]/10))*10
         image = image[:x_dim, :y_dim, :]
@@ -29,7 +30,6 @@ class PreprocessMILImageData(PreprocessImageData):
         return np.stack(np.split(split_in_b, 10, axis=2)).reshape((10*10, int(x_dim/10), int(y_dim/10), channels))\
             .astype("float32")
 
-    # TODO: Create multiprocessing pool
     def preprocess_data_and_save(self):
         self.delete_all_old()
         for file_name, label in self._input_file_list:

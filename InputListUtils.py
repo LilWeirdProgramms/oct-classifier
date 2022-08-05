@@ -48,12 +48,14 @@ def find_binaries_test_train(query, label, location=InputList._server_location, 
 
 
 def get_test_train_file_lists(type="raw"):
-    train_bin_healthy, test_bin_healthy = find_binaries_test_train(r"^H([0-9]|[0-9][0-9])", 0,
-                                                           location=server_location, type=type)
-    train_bin_diabetic, test_bin_diabetic = find_binaries_test_train(r"^D([2-9][0-9]|[0-9][0-9][0-9])$", 1,
+    # train_bin_healthy, test_bin_healthy = find_binaries_test_train(r"^H([0-9]|[0-9][0-9])", 0,
+    #                                                        location=server_location, type=type)
+    train_bin_diabetic, test_bin_diabetic = find_binaries_test_train(r"^D([8-9][0-9]|[0-9][0-9][0-9])$", 1,
                                                             location=server_location, type=type)
-    train_list = train_bin_healthy + train_bin_diabetic
-    test_list = test_bin_healthy + test_bin_diabetic
+    # train_list = train_bin_healthy + train_bin_diabetic
+    # test_list = test_bin_healthy + test_bin_diabetic
+    train_list = train_bin_diabetic
+    test_list = test_bin_diabetic
     return train_list, test_list
 
 

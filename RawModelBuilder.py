@@ -24,15 +24,28 @@ class RawModel:
     def model(self, output_to=None, input_shape=(204, 204, 1536, 1)):
         init, binit = self.initilizer()
         inp = k.layers.Input(shape=input_shape)
+        out = inp
+        out = k.layers.Conv3D(1536,
+                                  (1, 1, 1536),
+                                  strides=1,
+                                  activation="linear",
+                                  padding="valid",
+                                  kernel_initializer=init,
+                                  bias_initializer=binit,
+                                  kernel_regularizer=self.regularizer
+                                  )(out)
+        out = k.layers.Permute((1, 2, 4, 3))(out)
+        out = k.layers.MaxPooling3D((1, 1, 1536), trainable=False)(out)
         out = k.layers.Conv3D(self.first_layer_nodes,
-                                  3,
+                                  (3, 3, 1),
                                   strides=self.stride,
                                   activation=self.activation,
                                   padding="same",
                                   kernel_initializer=init,
                                   bias_initializer=binit,
                                   kernel_regularizer=self.regularizer
-                                  )(inp)
+                                  )(out)
+        out = k.layers.AveragePooling3D((2, 2, 1), trainable=False)(out)
         if self.firstdropout:
             out = k.layers.Dropout(0.2)(out)
         for i in range(1, self.num_layers + 1):
@@ -40,7 +53,7 @@ class RawModel:
                 out_short = out
             additional_nodes = i
             out = k.layers.Conv3D(self.first_layer_nodes * additional_nodes,
-                                  3,
+                                  (3, 3, 1),
                                   strides=self.stride,
                                   activation=self.activation,
                                   padding="same",
@@ -48,21 +61,21 @@ class RawModel:
                                   bias_initializer=binit,
                                   kernel_regularizer=self.regularizer
                                   )(out)
-            out = k.layers.Conv3D(self.first_layer_nodes * additional_nodes,
-                                  3,
-                                  strides=self.stride,
-                                  activation=self.activation,
-                                  padding="same",
-                                  kernel_initializer=init,
-                                  bias_initializer=binit,
-                                  kernel_regularizer=self.regularizer
-                                  )(out)
+            # out = k.layers.Conv3D(self.first_layer_nodes * additional_nodes,
+            #                       (2, 2, 6),
+            #                       strides=self.stride,
+            #                       activation=self.activation,
+            #                       padding="same",
+            #                       kernel_initializer=init,
+            #                       bias_initializer=binit,
+            #                       kernel_regularizer=self.regularizer
+            #                       )(out)
             if self.batchnorm:
                 out = k.layers.BatchNormalization()(out)
             if self.residual:
-                out = k.layers.Add()([out, out_short])
+                out = k.layers.Add(trainable=False)([out, out_short])
                 out = k.layers.Conv3D(self.first_layer_nodes * (additional_nodes+1),
-                                      3,
+                                      (3, 3, 1),
                                       strides=self.stride,
                                       activation=self.activation,
                                       padding="same",
@@ -72,9 +85,9 @@ class RawModel:
                                       )(out)
             if i < self.num_layers:
                 if self.ave_pool:
-                    out = k.layers.AveragePooling3D(2)(out)
+                    out = k.layers.AveragePooling3D((2, 2, 6), trainable=False)(out)
                 if self.max_pool:
-                    out = k.layers.MaxPooling3D(2)(out)
+                    out = k.layers.MaxPooling3D((2, 2, 6))(out)
         out = self.reduction(out)
         if self.seconddropout:
             out = k.layers.Dropout(0.1)(out)
@@ -83,7 +96,7 @@ class RawModel:
         model = k.Model(inp, out)
         model.summary(print_fn=output_to)
         if self.label_smoothing:
-            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.2),
+            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.1),
                           optimizer=k.optimizers.Adam(learning_rate=1e-4),
                           metrics=["accuracy"
                                    , TrueNegatives(from_logits=True)
@@ -135,7 +148,7 @@ class RawModel:
                     self.batchnorm = True
                 case "selu":
                     self.activation = "selu"
-                case "lay3" | "lay4" | "lay6" | "lay7" | "lay8" | "lay5":
+                case "lay2" | "lay3" | "lay4" | "lay6" | "lay7" | "lay8" | "lay5":
                     self.num_layers = int(parameter[-1])
                 case "no_drop":
                     self.firstdropout = False

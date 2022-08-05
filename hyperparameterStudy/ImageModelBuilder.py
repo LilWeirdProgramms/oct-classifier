@@ -135,7 +135,7 @@ class ImageModel:
                     self.batchnorm = True
                 case "selu":
                     self.activation = "selu"
-                case "lay3" | "lay4" | "lay6" | "lay7" | "lay8" | "lay5":
+                case "lay2" | "lay3" | "lay4" | "lay6" | "lay7" | "lay8" | "lay5":
                     self.num_layers = int(parameter[-1])
                 case "no_drop":
                     self.firstdropout = False

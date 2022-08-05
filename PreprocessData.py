@@ -13,6 +13,7 @@ class PreprocessData:
         self.dataset = None
 
     def preprocess_data_and_save(self):
+        self.delete_all_old()
         for file_name, label in self._input_file_list:
             image, label = self.preprocess_dataset(file_name, label)
             new_file_name = f"{label}_{os.path.basename(file_name)}"
@@ -23,7 +24,7 @@ class PreprocessData:
         files = os.listdir(self._buffer_folder)
         files = self.sort_files(files)
         files_full_path = [os.path.join(self._buffer_folder, file) for file in files]
-        file_labels = [(int(file.split("_")[0]), ) for file in files]
+        file_labels = [int(file.split("_")[0]) for file in files]
         self.calculation_file_list = [(file, label) for file, label in zip(files_full_path, file_labels)]
         dataset = tf.data.Dataset.from_tensor_slices((files_full_path, file_labels))
         if self.data_type == "train":
@@ -84,10 +85,11 @@ class PreprocessData:
     def calc_weights(ds):
         label_list = []
         for elem in ds:
-            label_list.append(round(elem[1].numpy()))
+            label_list.append(elem[1].numpy())
         a = sum(label_list)
         b = len(label_list) - sum(label_list)
         class_weights = {0: (1 / b) * (a + b) / 2, 1: (1 / a) * (a + b) / 2}
         logging.info(f"Got {len(label_list)} Training Samples of which {a} are diabetic and {b} are healthy")
         logging.info(f"Class Weights: {class_weights}")
+        return class_weights
 

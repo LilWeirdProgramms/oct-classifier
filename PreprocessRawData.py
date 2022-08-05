@@ -25,8 +25,8 @@ class PreprocessRawData:
         self._input_file_list = input_file_list
 
         self._buffer_folder = self.buffer_folder_generator()
-        self.buffer_folder_list = [f"/media/julius/My Passport1/bufferhdd2/{data_type}",
-                                   f"/media/julius/My Passport/bufferhdd1/{data_type}",
+        self.buffer_folder_list = [f"/media/julius/My Passport1/bufferhdd1/{data_type}",
+                                   f"/media/julius/My Passport/bufferhdd2/{data_type}",
                                    f"/mnt/NewHDD/bufferhdd0/{data_type}"]
         # self.buffer_folder_list = [f"/media/julius/My Passport1/bufferhdd2/{data_type}/1",
         #                            f"/media/julius/My Passport/bufferhdd1/{data_type}/1",
@@ -97,15 +97,18 @@ class PreprocessRawData:
     def preprocess_data_and_save(self):
         self.delete_all_old()
         for file_name, label in self._input_file_list:
-            save_folder = next(self._buffer_folder)
-            raw_data_stack, label = self.preprocess_dataset(file_name, label)
-            for i, raw_data in enumerate(raw_data_stack):
-                new_file_name = f"{label}_{os.path.basename(file_name)[:-4]}_{i}"
-                new_file_path = os.path.join(save_folder, new_file_name)
-                self.save_preprocessed_dataset(new_file_path, raw_data, label)
+            try:
+                save_folder = next(self._buffer_folder)
+                raw_data_stack, label = self.preprocess_dataset(file_name, label)
+                for i, raw_data in enumerate(raw_data_stack):
+                    new_file_name = f"{label}_{os.path.basename(file_name)[:-4]}_{i}"
+                    new_file_path = os.path.join(save_folder, new_file_name)
+                    self.save_preprocessed_dataset(new_file_path, raw_data, label)
+            except BaseException as err:
+                print(f"{err} just happend. Skipping Sample")
 
     def preprocess_dataset(self, file_name, label):
-        reader = BinaryMILDataset(reading_type="difference", background_sub=True)
+        reader = BinaryMILDataset(reading_type="difference", background_sub=False)
         instance = reader.instance_from_binaries_generator(file_name)
         return instance, label
 
@@ -125,6 +128,7 @@ class PreprocessRawData:
         class_weights = {0: (1 / b) * (a + b) / 2, 1: (1 / a) * (a + b) / 2}
         logging.info(f"Got {len(label_list)} Training Samples of which {a} are diabetic and {b} are healthy")
         logging.info(f"Class Weights: {class_weights}")
+        return class_weights
 
     @staticmethod
     def get_test_train_file_lists(type="raw"):
@@ -141,13 +145,28 @@ class PreprocessRawData:
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))
 
+def remove_duplicates(path_list):
+    only_files = [os.path.basename(path) for path, label in path_list]
+    remove_indexes = []
+    for duplicate_file in set([x for x in only_files if only_files.count(x) > 1]):
+        remove_indexes.append(only_files.index(duplicate_file))
+    for index in sorted(remove_indexes, reverse=True):
+        del path_list[index]
+    only_id = [s.split(".")[-2].split("_")[-1] for s in only_files]
+    for duplicate_id in set([x for x in only_id if only_id.count(x) > 1]):
+        print(f"Warning: Duplicate ID {duplicate_id}. This ID will be overwritten")
+    return path_list
 
 if __name__ == "__main__":
     # binary_file_list = [("/mnt/p_Zeiss_Clin/Projects/UWF OCTA/Clinical data/MOON1/H32/rechts/raw_1536x2048x2044x2_4608.bin", 1)]
     # raw_data_preprocess = PreprocessRawData(input_file_list=binary_file_list)
     train_list, test_list = InputListUtils.get_test_train_file_lists()
+    train_list = remove_duplicates(train_list)
     raw_data_preprocess = PreprocessRawData(input_file_list=train_list, data_type="train")
     raw_data_preprocess.preprocess_data_and_save()
     #raw_data_preprocess.create_dataset_for_calculation()
     # raw_data_preprocess = PreprocessRawData(input_file_list=test_list, data_type="test")
     # raw_data_preprocess.preprocess_data_and_save()
+
+
+

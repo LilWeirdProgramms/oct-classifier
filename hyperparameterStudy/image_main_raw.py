@@ -1,10 +1,10 @@
+import keras.backend
 import matplotlib.pyplot as plt
 import random
 import itertools
 import logging
 import os
-#from tensorflow.keras import mixed_precision
-import tensorflow.keras as k
+from tensorflow.keras import mixed_precision
 
 from Hyperparameter import Hyperparameter
 from PreprocessMultiChannelMILImageData import PreprocessMultiChannelMILImageData
@@ -37,45 +37,25 @@ import Callbacks
 #     label_smoothing=["label_smoothing", "lfalse"]
 # )
 
-# #  TODO: Create Factory
-# hyperparameter_list = Hyperparameter(
-#     downsample=["ave_pool"],  # , "stride"
-#     activation=["selu"],  # , "relu_norm", "relu_norm",
-#     conv_layer=["lay5"],  # "lay4",
-#     dropout=["no_drop"],  # "no_drop", , "lot_drop"
-#     regularizer=["little_l2"],  # "l2",
-#     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
-#     first_layer=["n32"], # "n64"
-#     init=["zeros"],  # , "same"
-#     augment=["afalse"],  # "augment", "augment_strong",
-#     noise=["no_noise"],  # "no_noise"
-#     repetition=["fft_denoise5"],
-#     residual=["residual"], # "residual",
-#     mil=["mil"],
-#     crop=["cfalse"],  #cfalse
-#     normalize=["nfalse"],  # nfalse
-#     image_type=["images"],  #
-#     label_smoothing=["lfalse"]
-# )
 #  TODO: Create Factory
 hyperparameter_list = Hyperparameter(
-    downsample=["ave_pool"],  # , "stride"
+    downsample=["stride"],  # , "stride"
     activation=["selu"],  # , "relu_norm", "relu_norm",
-    conv_layer=["lay4"],  # "lay4",
-    dropout=["no_drop"],  # "no_drop", , "lot_drop"
+    conv_layer=["lay2"],  # "lay4",
+    dropout=["no_drop"],  # "no_drop", , "lot_drop", little_drop
     regularizer=["little_l2"],  # "l2",
     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
     init=["zeros"],  # , "same"
     augment=["afalse"],  # "augment", "augment_strong",
     noise=["no_noise"],  # "no_noise"
-    repetition=["fft_denoise_on"],
-    residual=["residual"], # "residual",
+    repetition=["fft_denoise3"],
+    residual=["normal"], # "residual",
     mil=["mil"],
     crop=["cfalse"],  #cfalse
     normalize=["nfalse"],  # nfalse
-    image_type=["structure"],  #
-    label_smoothing=["lfalse"]
+    image_type=["raw"],  #
+    label_smoothing=["label_smoothing"]
 )
 
 
@@ -86,7 +66,7 @@ class ImageMain:
                             level=logging.INFO,
                             filemode="w")
         logging.info("BEGINNING HYPERPARAMTER STUDY")
-        #mixed_precision.set_global_policy('mixed_float16')
+        mixed_precision.set_global_policy('mixed_float16')
         self.model_folder = "results/hyperparameter_study/mil/models"
 
         # TODO:  look at slices of srtucture. Look at mean of raw data
@@ -112,6 +92,8 @@ class ImageMain:
             self.image_type = "structure"
         if "combined" in self.model_name:
             self.image_type = "combined"
+        if "raw" in self.model_name:
+            self.image_type = "raw"
         if "crop" in self.model_name:
             self.crop = 300
         else:
@@ -143,7 +125,7 @@ class ImageMain:
             self.model_name = model_name
             self.model_parameters = model_parameters
             self.train()
-            self.eval()  # TODO
+            #self.eval()  # TODO
 
     def eval_all(self):
         list_of_model_names, list_of_model_parameters = self.generate_model_names()
@@ -156,29 +138,40 @@ class ImageMain:
     def train(self):
         self.create_dataset("train")
         self.train_model()
+        self.eval()
 
     def eval(self):
         self.create_dataset("test")
-        self.eval_dataset(self.ds_test, "test")
+        #self.eval_dataset(self.ds_test, "test")
+        #self.eval_dataset(self.ds_train.take(2), "train")
+        #self.create_dataset("train")
+        #self.ds_test = self.ds_train.take(2)
         self.eval_model()
 
     def create_dataset(self, data_type="train"):
         self.create_params_from_model_name()
-        file_list = self.get_file_list(data_type)
+
+        # TODO: create static method in rawdata class than factory
+        #file_list = self.get_file_list(data_type)
+        if data_type == "train":
+            file_list, _ = PreprocessRawData.get_test_train_file_lists()
+        else:
+            _, file_list = PreprocessRawData.get_test_train_file_lists()
+
         if self.image_type == "combined":
             pid = PreprocessMultiChannelMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
         elif self.image_type == "raw":
-            pid = PreprocessRawData(file_list)
+            pid = PreprocessRawData(file_list, data_type=data_type)
         else:
             pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
         pid.preprocess_data_and_save()
         if data_type == "train":
             self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
-            self.class_weights = PreprocessData.calc_weights(self.ds_train)  # TODO factory
-            self.eval_dataset(self.ds_train)
-            self.eval_dataset(self.ds_val, "val")
+            self.class_weights = PreprocessRawData.calc_weights(pid.train_label_list)  # TODO factory
+            #self.eval_dataset(self.ds_train)
+            #self.eval_dataset(self.ds_val, "val")
         else:
             self.ds_test = pid.create_dataset_for_calculation()
 
@@ -192,17 +185,28 @@ class ImageMain:
         return file_list
 
     def train_model(self):
-        im = ImageModel(self.model_parameters)  # TODO factory
-        self.image_size = self.get_datasize()
-        # im = RawModel(self.model_parameters)  # TODO factory
-        # self.image_size = (204, 204, 1536, 1)
+        #im = ImageModel(self.model_parameters)  # TODO factory
+        #self.image_size = self.get_datasize()
+        NUM_SAMPLES_TRAIN = 180
+        NUM_SAMPLES_VAL = 15
+        BATCH_SIZE = 1
+        NUM_WALKTHROUGH = 3
+        CHECKPOINTS = 30
+        train_steps = int(NUM_SAMPLES_TRAIN * NUM_WALKTHROUGH / (BATCH_SIZE * CHECKPOINTS))
+        val_steps = int(NUM_SAMPLES_VAL * NUM_WALKTHROUGH / (BATCH_SIZE * CHECKPOINTS))
+
+        im = RawModel(self.model_parameters)  # TODO factory
+        self.image_size = (204, 204, 1536, 1)
         model = im.model(output_to=logging.info, input_shape=self.image_size)
-        k.utils.plot_model(model, show_shapes=True, expand_nested=True)
-        model.fit(self.ds_train.batch(16),
-                  validation_data=self.ds_val.batch(1),
+        model.fit(self.ds_train.batch(BATCH_SIZE).repeat(),
+                  validation_data=self.ds_val.batch(BATCH_SIZE).repeat(),
                   epochs=50,
-                  callbacks=Callbacks.mil_pooling_callback(self.model_name),  #TODO
-                  class_weight=self.class_weights)
+                  callbacks=Callbacks.raw_callback(self.model_name),  #TODO
+                  class_weight=self.class_weights,
+                  use_multiprocessing = True,
+                  steps_per_epoch = train_steps,
+                  validation_steps = val_steps
+        )
 
     def eval_model(self):
         """
@@ -215,7 +219,7 @@ class ImageMain:
                                                                             int(file[0].split("_")[-1][:-4])))
         # TODO: sort file list and dataset together (should already be sorted) just pack into loop
         hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop)
-        hp.mil_postprocessing()
+        hp.mil_raw_postprocessing()
         if "structure" in self.model_name or "combined" in self.model_name:
             visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="structure")
             visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
@@ -260,5 +264,6 @@ class ImageMain:
 
 if __name__ == "__main__":
     os.chdir("../")
+    keras.backend.clear_session()
     run_image = ImageMain()
-    run_image.run_all()
+    run_image.eval_all()

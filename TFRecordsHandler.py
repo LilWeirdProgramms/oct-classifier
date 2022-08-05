@@ -38,8 +38,7 @@ def parse_single_image(image, label):
 def write_images_to_tfr_short(image, label, filename:str="images"):  # TODO: Write batch size elements
   filename= filename + ".tfrecords"
   #options = tf.io.TFRecordOptions(compression_type="GZIP")
-  with tf.io.TFRecordWriter(filename,
-                            #options=options
+  with tf.io.TFRecordWriter(filename, #options=options
                             ) as writer:
     out = parse_single_image(image=image, label=label)
     writer.write(out.SerializeToString())
@@ -67,6 +66,7 @@ def parse_tfr_element(element):
     # get our 'feature'-- our image -- and reshape it appropriately
     feature = tf.io.parse_tensor(raw_image, out_type=tf.float32)
     feature = tf.reshape(feature, shape=[int(ascan), int(bscan), int(cscan), int(channels)])
+    feature = tf.cast(feature, "float16")
     label = tf.reshape(label, shape=[1])
     return (feature, label)
 

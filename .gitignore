@@ -34,6 +34,7 @@ savedModels/
 checkpoints/
 data/
 results/
+tests/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

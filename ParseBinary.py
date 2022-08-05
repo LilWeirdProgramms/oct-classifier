@@ -6,7 +6,7 @@ from typing import Generator
 import math
 import logging
 import matplotlib.pyplot as plt
-
+from sklearn.decomposition import PCA
 
 class BinaryMILDataset:
     def __init__(self, reading_type="normal", background_sub=False):
@@ -55,18 +55,23 @@ class BinaryMILDataset:
             else:
                 read_bscan = self.get_bscans(file)
             instance[c_index, :, :, 0] = read_bscan
-        if self.reading_type == "every4":
-            instance = instance[:, ::4, :, :]
+        #if self.reading_type == "every4":
+        instance = instance[::4, ::4, :, :]
+
         if self.background_sub:
-            self.substract_background(instance)
-        return instance / 1000  # TODO: Normalize Instance Bag wise (moving average?)
+            instance = self.substract_background(instance)
+        reshaped_instance = instance.reshape((-1, 1536))
+        pca = PCA(n_components=instance.shape[0])
+        reshaped_instance_reduced = pca.fit_transform(reshaped_instance)
+        instance_reduced = reshaped_instance_reduced.reshape((instance.shape[0], instance.shape[0], -1, 1))
+        return instance_reduced   # TODO: Normalize Instance Bag wise (moving average?)
 
     def get_difference_bscans(self, file):
         bscan = np.empty((self.b_size, self.a_size, 2))
         for i in range(2):
             for b_index in range(self.b_size):
                 read_from_file = np.fromfile(file, dtype=self.file_data_type, count=self.num_read_from_file)
-                bscan[b_index, :, i] = read_from_file
+                bscan[b_index, :, i] = read_from_file / 65535
             file.seek(self.file_data_type.itemsize *
                       self.ascan_length * (1 * self.bscan_length - self.b_size)
                       , os.SEEK_CUR)
@@ -87,16 +92,17 @@ class BinaryMILDataset:
 
     def substract_background(self, instance):
         for i in range(instance.shape[0]):
-            instance[i, :, :, 0] = instance[i, :, :, 0] - self.background
+            instance[i, :, :, 0] = instance[i, :, :, 0] - self.background[::4]
         # instance - self.background[None, ..., None]
         return instance
 
     def get_background(self, file):
         file.seek(1536*2043*2048*2*2)
-        background = np.fromfile(file, dtype="uint16", count=1536*2048)[:1536*self.b_size].reshape((self.b_size, 1536))
+        background = np.fromfile(file, dtype="uint16", count=1536*2048)[:1536*self.b_size].reshape((self.b_size, 1536)) \
+                     / 65535
         if self.reading_type == "difference":
             background_diff = np.fromfile(file, dtype="uint16", count=1536 * 2048)[:1536*self.b_size]\
-                .reshape((self.b_size, 1536))
+                .reshape((self.b_size, 1536)) / 65535
             background = background.astype("float32")
             background_diff = background_diff.astype("float32")
             background = background - background_diff

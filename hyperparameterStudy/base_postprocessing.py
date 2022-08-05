@@ -43,6 +43,7 @@ class BasePostprocessor:
         ax[1].plot(history_df["epoch"], history_df["accuracy"])
         ax[1].plot(history_df["epoch"], history_df["val_accuracy"])
         ax[1].legend(["Training Accuracy", "Validation Accuracy"])
+        #  TODO: Tight Layout somehow throws error in debug mode (python 3.10 bug) (downgrade to solve)
         plt.tight_layout()
         fig.savefig(os.path.join(output_path, "history"))
         plt.close()
@@ -116,7 +117,7 @@ class BasePostprocessor:
         same_image_score = []
         score = 0
         for predicted, truth in result_list:
-            if any(x in truth[0] for x in only_a_bit_diabetic):
+            if any([x in truth[0] for x in only_a_bit_diabetic]):
                 score += 2 * (predicted < very_diabetic_threshold)
             else:
                 score += (predicted > 0 and truth[1] == 1.) or (predicted < 0 and truth[1] == 0.)

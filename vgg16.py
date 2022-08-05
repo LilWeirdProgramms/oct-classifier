@@ -46,7 +46,7 @@ from tensorflow.keras.optimizers import Adam
 #     model.summary()
 #     return model
 
-def create_vgg_model(input_shape=(None, 1444, 1448, 3), train_from_layer=14):
+def create_vgg_model(input_shape=(None, 2044, 2048, 3), train_from_layer=15):
     network_input = k.layers.Input(shape=input_shape)
     #vgg_model = VGG16(weights='imagenet', include_top=False)
     vgg_model = VGG16(weights="imagenet", input_tensor=network_input, include_top=False)
@@ -68,15 +68,15 @@ def create_vgg_model(input_shape=(None, 1444, 1448, 3), train_from_layer=14):
     # model = k.Model(inputs=inp, outputs=out)
     model.add(k.layers.GlobalAveragePooling2D())
     model.add(k.layers.Dropout(0.1))
-    model.add(k.layers.Dense(64, activation='relu'))
+    model.add(k.layers.Dense(64, activation='relu', kernel_regularizer=k.regularizers.l2(l2=0.001)))
     model.add(k.layers.Dense(1, activation='linear'))
     #model = k.Model(inputs=inp, outputs=out)
     model.compile(optimizer=Adam(learning_rate=1e-4), loss=k.losses.BinaryCrossentropy(from_logits=True),
-                  metrics=["accuracy"]
+                  metrics=["accuracy", Precision(from_logits=True)]
     )
     #model2 = k.Model(inputs=inp, outputs=out_bkp)
     #model2 = k.Model(model.layers[1].input, model.layers[6].output)
-    model.build((None, 1444, 1448, 3))
+    model.build((None, 2044, 2048, 3))
     model.summary()
     return model
 
@@ -96,3 +96,13 @@ if __name__ == "__main__":
     vgg_model.fit(dataset.dataset_train.batch(2), validation_data=dataset.dataset_val)
 
 
+class Precision(tf.keras.metrics.Precision):
+    def __init__(self, from_logits=False, *args, **kwargs):
+        super().__init__(*args, **kwargs, name="precision")
+        self._from_logits = from_logits
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        if self._from_logits:
+            super(Precision, self).update_state(y_true, tf.nn.sigmoid(y_pred), sample_weight)
+        else:
+            super(Precision, self).update_state(y_true, y_pred, sample_weight)

@@ -35,11 +35,14 @@ class PreprocessImageData(PreprocessData):
     def _preprocess_image(self, image):
         if self.crop:
             image = image[self.crop:-self.crop, self.crop:-self.crop]
-        image = self.remove_periodic_noise(image)
+        image = self.remove_periodic_noise(image, fft_filter=True)
         image = tf.image.per_image_standardization(image).numpy()
+        if self.channels == 3:
+            image = (image - image.min()) / (image.max()-image.min()) * 255
+            image = tf.keras.applications.vgg16.preprocess_input(image)
         return image
 
-    def remove_periodic_noise(self, image: np.ndarray, interpolation=False, low_pass=True):
+    def remove_periodic_noise(self, image: np.ndarray, interpolation=False, low_pass=True, fft_filter=False):
         """
         Removes Noise that Appears every 0.25 columns of the image. Works best if image.shape[1] is dividable by 4
         :param image: 2d or 3d array with frequency noise along the First Dimension
@@ -47,19 +50,22 @@ class PreprocessImageData(PreprocessData):
         :param low_pass: Apply Gauss Filter afterwards
         :return:
         """
-        fft_im = np.fft.fft(image, axis=1)
-        central_frequency = int(image.shape[1] / 2)
-        lower_harmonic = int(central_frequency / 2)
-        upper_harmonic = int(3 * central_frequency / 2)
-        if interpolation:
-            fft_im = self.interpolate_freq(fft_im, central_frequency)
-            fft_im = self.interpolate_freq(fft_im, lower_harmonic)
-            fft_im = self.interpolate_freq(fft_im, upper_harmonic)
+        if fft_filter:
+            fft_im = np.fft.fft(image, axis=1)
+            central_frequency = int(image.shape[1] / 2)
+            lower_harmonic = int(central_frequency / 2)
+            upper_harmonic = int(3 * central_frequency / 2)
+            if interpolation:
+                fft_im = self.interpolate_freq(fft_im, central_frequency)
+                fft_im = self.interpolate_freq(fft_im, lower_harmonic)
+                fft_im = self.interpolate_freq(fft_im, upper_harmonic)
+            else:
+                fft_im = self.set_freq_zero(fft_im, central_frequency)
+                fft_im = self.set_freq_zero(fft_im, lower_harmonic)
+                fft_im = self.set_freq_zero(fft_im, upper_harmonic)
+            new_im = np.fft.ifft(fft_im, axis=1).real
         else:
-            fft_im = self.set_freq_zero(fft_im, central_frequency)
-            fft_im = self.set_freq_zero(fft_im, lower_harmonic)
-            fft_im = self.set_freq_zero(fft_im, upper_harmonic)
-        new_im = np.fft.ifft(fft_im, axis=1).real
+            new_im = image
         if low_pass:
             new_im = sk_fi.gaussian(new_im, sigma=1)
         return new_im
@@ -108,8 +114,17 @@ class PreprocessImageData(PreprocessData):
 
 
 if __name__ == "__main__":
-    file_list = ImageDataset.load_file_list("test")
-    pid = PreprocessImageData(file_list, rgb=True)
-    im, la = pid.preprocess_dataset(*file_list[0])
-    print(im.shape)
+    import os
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+    import tensorflow as tf
+
+    from tensorflow.python.client import device_lib
+
+    print(device_lib.list_local_devices())
+    with tf.device("/cpu:0"):
+        file_list = ImageDataset.load_file_list("test")
+        pid = PreprocessImageData(file_list, rgb=True)
+        im, la = pid.preprocess_dataset(*file_list[0])
+        print(im.shape)
 

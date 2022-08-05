@@ -16,6 +16,9 @@ class HyperPostprocessor(BasePostprocessor):
                  history_folder="results/hyperparameter_study"):
         super().__init__(model_name, results_folder, file_list, history_folder)
         self.test_ds = dataset
+        model = self.load_model("")
+        self.prediction = self.create_prediction(model)
+
         #self.mil_pooling_model_name = "mil_pooling_" + model_name
 
     def supervised_processing(self):
@@ -25,14 +28,19 @@ class HyperPostprocessor(BasePostprocessor):
             self.model_postprocessing(prediction, model, model_ident)
 
     def processing(self):
+        self.model_postprocessing(self.prediction, model, "", heat=False)
+
+    def processing_vgg(self):
         model = self.load_model("")
+        for layer in model.layers:
+            layer.trainable = True
         prediction = self.create_prediction(model)
-        self.model_postprocessing(prediction, model, "", heat=False)
+        self.model_postprocessing(prediction, model, "", heat=True)
 
     def plot_heatmaps(self, model, output_path):
         sns.set_theme(style="white")
         mod_output_path = os.path.join(output_path, "grad_cam")
-        postprocessor = Postprocessing(postprocessing_model=model)
+        postprocessor = Postprocessing(prediction_results=self.prediction, postprocessing_model=model)
         postprocessor.grad_cam_images(self.test_ds,
                                       Postprocessing.create_name_list_from_paths(self.test_file_list),
                                       folder_path=mod_output_path)

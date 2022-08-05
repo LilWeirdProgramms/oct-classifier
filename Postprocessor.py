@@ -30,26 +30,43 @@ class Postprocessing:
         disp.plot(ax=ax)
         plt.savefig(name)
 
+    def return_grad_cam(self, dataset, name_list=None, visualize_layer=0, folder_path=None):
+        layer_name_vis = self.get_conv_layer_name(visualize_layer)
+        all_heatmap_plots = []
+        all_images = []
+        for image_label_pair in dataset:
+            heatmap, class_out = self.grad_cam2(np.expand_dims(image_label_pair[0], axis=0), layer_name_vis)
+            heatmap = np.maximum(heatmap, 0)
+            rs_image = Postprocessing.min_max_scale(image_label_pair[0])[..., 0]
+            rs_heatmap = Postprocessing.min_max_scale(heatmap)
+            rs_heatmap = sk_tr.resize(rs_heatmap, rs_image.shape, order=0, mode="edge")
+            all_heatmap_plots.append(rs_heatmap)
+            all_images.append(rs_image)
+        return np.array(all_heatmap_plots), np.array(all_images)
+
     def grad_cam_images(self, dataset, name_list=None, num_elements=50, visualize_layer=0, folder_path=None):
         layer_name_vis = self.get_conv_layer_name(visualize_layer)
         if name_list is None:
             name_list = range(500)
-        for image_label_pair, ident in zip(dataset.take(num_elements), name_list):
+        for prediction, image_label_pair, ident in sorted(zip(self.prediction_results, dataset.take(num_elements), name_list)):
             heatmap, class_out = self.grad_cam(np.expand_dims(image_label_pair[0], axis=0), layer_name_vis)
             # heatmap, class_out = self.make_gradcam_heatmap(np.expand_dims(image_label_pair[0], axis=0))
             heatmap = np.maximum(heatmap, 0)
             rs_image = Postprocessing.min_max_scale(image_label_pair[0])[..., 0]
-            rs_heatmap = Postprocessing.min_max_scale(heatmap)
+            rs_heatmap = Postprocessing.min_max_scale(heatmap) * np.abs(class_out.numpy().squeeze()) / \
+                         np.maximum(self.prediction_results.max(), 0)
             rs_heatmap = sk_tr.resize(rs_heatmap, rs_image.shape)
-            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
-            fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0]}", fontsize=30)
+            fig, ax = plt.subplots(1, 1, figsize=(18, 18))
+            fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0][0]}", fontsize=16)
             # im1 = ax[0].imshow(rs_image, cmap="gray")
             # plt.colorbar(im1, ax=ax[0])
             # im2 = ax[1].imshow(heatmap, cmap="hot")
             # plt.colorbar(im2, ax=ax[1])
+            ax.axis(False)
             ax.imshow(rs_image, cmap="gray")
             im3 = ax.imshow(rs_heatmap, cmap="hot", alpha=0.4)
-            plt.colorbar(im3, ax=ax)
+            plt.subplots_adjust(wspace=0, hspace=0)
+            #plt.colorbar(im3, ax=ax)
             # fig, ax = plt.subplots(1, 3, figsize=(40, 12))
             # fig.suptitle(f"Image Type {image_label_pair[1]} with Prediction: {class_out[0]}", fontsize=30)
             # im1 = ax[0].imshow(rs_image, cmap="gray")
@@ -64,12 +81,12 @@ class Postprocessing:
             else:
                 image_path = os.path.join(folder_path, f"grad_cam{ident}.png")
             plt.tight_layout()
-            fig.savefig(image_path)
+            fig.savefig(image_path, bbox_inches='tight')
             plt.close()
 
     def only_grad_cam_overlay(self, image, visualize_layer=0):
         layer_name_vis = self.get_conv_layer_name(visualize_layer)
-        heatmap, class_out = self.grad_cam(np.expand_dims(image, axis=0), layer_name_vis)
+        heatmap, class_out = self.grad_cam(np.expand_dims(image, axis=0).astype("float32"), layer_name_vis)
         heatmap = np.maximum(heatmap, 0)
         rs_image = np.squeeze(Postprocessing.min_max_scale(image), axis=2)
         rs_heatmap = Postprocessing.min_max_scale(heatmap)
@@ -84,28 +101,28 @@ class Postprocessing:
     @staticmethod
     def min_max_scale(data): return (data - np.min(data)) / (np.max(data) - np.min(data))
 
-    # def grad_cam(self, input_data, layer_name):
-    #     """
-    #     Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
-    #     :param input_shape:
-    #     :param input_data:
-    #     :param layer_name:
-    #     :return:
-    #     """
-    #     with tf.GradientTape() as tape:
-    #         last_conv_layer_name = self.postprocessing_model.get_layer(layer_name)
-    #         grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output
-    #             , last_conv_layer_name.output])
-    #         model_out, last_conv_layer = grad_cam_model(input_data)
-    #         tape.watch(last_conv_layer)
-    #         #tape.watch(last_conv_layer)
-    #         class_out = model_out[:, tf.argmax(model_out[0])]
-    #         #tape.watch(model_out)
-    #         grads = tape.gradient(class_out, last_conv_layer)
-    #         pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
-    #     heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer), axis=-1)
-    #     heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
-    #     return heatmap, class_out
+    def grad_cam2(self, input_data, layer_name):
+        """
+        Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
+        :param input_shape:
+        :param input_data:
+        :param layer_name:
+        :return:
+        """
+        with tf.GradientTape() as tape:
+            last_conv_layer_name = self.postprocessing_model.get_layer(layer_name)
+            grad_cam_model = tf.keras.models.Model([self.postprocessing_model.inputs], [self.postprocessing_model.output
+                , last_conv_layer_name.output])
+            model_out, last_conv_layer = grad_cam_model(input_data)
+            #tape.watch(last_conv_layer)
+            #tape.watch(last_conv_layer)
+            class_out = model_out[:, tf.argmax(model_out[0])]
+            #tape.watch(model_out)
+            grads = tape.gradient(class_out, last_conv_layer)
+            pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
+        heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer), axis=-1)
+        heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
+        return heatmap, class_out
 
     def grad_cam(self, input_data, layer_name):
         """
@@ -130,7 +147,7 @@ class Postprocessing:
         classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
         x = classifier_input
         for layer_name in classifier_layer_names[::-1]:
-            x = model.get_layer(layer_name)(x)
+            x = self.postprocessing_model.get_layer(layer_name)(x)
         classifier_model = k.Model(classifier_input, x)
 
         with tf.GradientTape() as tape:
@@ -286,6 +303,8 @@ class Postprocessing:
         for path, label in path_list:
             image_name = os.path.basename(path)
             image_identifier = image_name.split(".")[-2].split("_")[-1]
+            if image_identifier == "png":
+                image_identifier = image_name.split(".")[-3].split("_")[-1]
             name_list.append(image_identifier)
         return name_list
 
@@ -304,7 +323,7 @@ if __name__ == "__main__":
 
     #tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
     file_list = PreprocessData.load_file_list(test_or_train="test", angio_or_structure="images")
-    pid = PreprocessImageData(file_list, rgb=False, crop=300)
+    pid = PreprocessImageData(file_list, rgb=False, crop=False)
     pid._buffer_folder = "tests/test"
     pid.preprocess_data_and_save()
     ds = pid.create_dataset_for_calculation()
