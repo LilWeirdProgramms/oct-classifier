@@ -7,9 +7,10 @@ import math
 import logging
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+import numpy.fft as fft
 
 class BinaryMILDataset:
-    def __init__(self, reading_type="normal", background_sub=False):
+    def __init__(self, reading_type="normal", background_sub=False, selection_of_ascans=None):
         """
 
         :param reading_type: ["normal"], ["every4"], ["difference"]
@@ -23,6 +24,7 @@ class BinaryMILDataset:
         self.a_size = 1536
         self.b_size = int(self.bscan_length / self.b_division)
         self.c_size = int(self.cscan_length / self.c_division)
+        self.selection_of_ascans = selection_of_ascans
 
         self.file_data_type = np.dtype('<u2')
 
@@ -31,9 +33,14 @@ class BinaryMILDataset:
         self.background = None
         self.background_sub = background_sub
 
+        self.pca = PCA(n_components=51)
+        self.data_mean = None
+        self.data_std = None
+
     def instance_from_binaries_generator(self, binary_file) -> Generator:
+        self.calc_preproc_params()
         with open(binary_file, "rb") as f:
-            self.background = self.get_background(f)
+            #self.background = self.get_background(f)
             for i in range(self.c_division):
                 for j in range(self.b_division):
                     index = self.file_data_type.itemsize * (j * self.b_size +
@@ -48,23 +55,51 @@ class BinaryMILDataset:
         Move to: tf.data.TFRecordDataset(filenames = [fsns_test_file])
         1 for greyscale image
         """
-        instance = np.empty((self.c_size, self.b_size, self.num_read_from_file, 1), "float32")
+        instance = np.empty((self.c_size, int(self.b_size / 4), int(self.b_size / 4), 1), "float32")
         for c_index in range(self.c_size):
             if self.reading_type == "difference":
                 read_bscan =self.get_difference_bscans(file)
             else:
                 read_bscan = self.get_bscans(file)
-            instance[c_index, :, :, 0] = read_bscan
+            read_bscan = read_bscan[::4, :]
+            preproc_bscan = self.preproc_layer1(read_bscan)
+            preproc_bscan = self.preproc_layer2(preproc_bscan)
+            instance[c_index, :, :, 0] = preproc_bscan
         #if self.reading_type == "every4":
-        instance = instance[::4, ::4, :, :]
+        instance = instance[::4, :, :, :]
 
-        if self.background_sub:
-            instance = self.substract_background(instance)
-        reshaped_instance = instance.reshape((-1, 1536))
-        pca = PCA(n_components=instance.shape[0])
-        reshaped_instance_reduced = pca.fit_transform(reshaped_instance)
-        instance_reduced = reshaped_instance_reduced.reshape((instance.shape[0], instance.shape[0], -1, 1))
-        return instance_reduced   # TODO: Normalize Instance Bag wise (moving average?)
+        #if self.background_sub:
+        #    instance = self.substract_background(instance)
+        return instance   # TODO: Normalize Instance Bag wise (moving average?)
+
+    def calc_preproc_params(self):
+        prepared_ascans = self.preproc_layer1(self.selection_of_ascans)
+        self.pca.fit(prepared_ascans)
+        reduced_data = self.pca.transform(prepared_ascans)
+        self.data_mean = reduced_data.mean()
+        self.data_std = reduced_data.std()
+
+    def preproc_layer1(self, data: np.ndarray):
+        """
+        Input a list of raw a-scan
+        :param data:
+        :return:
+        """
+        # crop:
+        data_transformed = data[:, 400:1400]
+        # maybe do fourier transform:
+        data_transformed = np.abs(fft.ifft(data_transformed))[:, 1:]
+        return data_transformed
+
+    def preproc_layer2(self, data):
+        """
+        In this layer all the preprocessing is done that relies on information from the whole dataset
+        :param data:
+        :return: (51, 51, 51)
+        """
+        reduced_data = self.pca.transform(data)
+        reduced_normalize_data = (reduced_data - self.data_mean) / self.data_std
+        return reduced_normalize_data
 
     def get_difference_bscans(self, file):
         bscan = np.empty((self.b_size, self.a_size, 2))
@@ -107,7 +142,6 @@ class BinaryMILDataset:
             background_diff = background_diff.astype("float32")
             background = background - background_diff
         return background
-
 
     def _check_file_existance(self, file_list: list):
         file_exists = [not os.path.exists(file) for file, label in file_list]

@@ -13,7 +13,7 @@ class MNISTDataHandler:
     """
 
     def __init__(self, data_size=2000, frequency=False):
-        use_every = 1
+        use_every = 2
         self.use_every = use_every
         self.bagging = True
         with h5py.File("data/3d_mnist/full_dataset_vectors.h5", "r") as hf:
@@ -54,9 +54,10 @@ class MNISTDataHandler:
     #         all_bags.append(one_bag)
     #     return all_bags
 
-    def create_mnist_bags(self, data, labels: np.ndarray, bagsize=5):
+    def create_mnist_bags(self, data, labels: np.ndarray, bagsize=2):
         org_labels = labels
-        original_true = np.logical_or(labels == 5, labels == 9).astype("int16")
+        #original_true = np.logical_or(labels == 1, labels == 3).astype("int16")
+        original_true = org_labels
         noise_reduced_ret = copy.deepcopy(original_true)
 
         labels = original_true
@@ -77,9 +78,13 @@ class MNISTDataHandler:
         #labels = (labels == 5).astype("int16")
         if self.bagging:
             for j in range(int(org_labels.size / bagsize)):
-                true_instances = np.logical_or(org_labels[bagsize*j:bagsize*j+bagsize] == 5,
+                true_instances = np.logical_or(org_labels[bagsize*j:bagsize*j+bagsize] == 4,
                                                org_labels[bagsize*j:bagsize*j+bagsize] == 9)
                 labels[bagsize*j:bagsize*j+bagsize] = np.logical_or(true_instances, np.any(true_instances))
+            if org_labels.size % bagsize != 0:
+                true_instances = np.logical_or(org_labels[-(org_labels.size % bagsize):] == 4,
+                                               org_labels[-(org_labels.size % bagsize):] == 9)
+                labels[-(org_labels.size % bagsize):] = np.logical_or(true_instances, np.any(true_instances))
         return labels, noise_reduced_ret
 
     def put_data_in_bags(self):
@@ -95,7 +100,7 @@ class MNISTDataHandler:
         """
         if data is None:
             data = self.random_number2
-        fourier_transformed_sample = fft(data, axis=0).real.astype("float32")
+        fourier_transformed_sample = np.abs(fft(data, axis=0)).astype("float32")
         return fourier_transformed_sample
 
     def create_frequency_dataset(self):
@@ -143,6 +148,7 @@ class MNISTDataHandler:
         self.put_data_in_bags()
         self.standardize()
         train_dataset = tf.data.Dataset.from_tensor_slices((self.x_train, self.y_train))
+        val_dataset = tf.data.Dataset.from_tensor_slices((self.x_val, self.y_val))
         test_dataset = tf.data.Dataset.from_tensor_slices((self.x_test, self.y_test))
         #train_dataset, test_dataset = self.same_amount()
         all_labels = []
@@ -154,7 +160,6 @@ class MNISTDataHandler:
             print(element[0].shape, element[1].shape)
             print("Example Label:")
             print(element[1])
-        val_dataset = tf.data.Dataset.from_tensor_slices((self.x_val, self.y_val))
         return train_dataset, val_dataset, test_dataset
 
     def plot_3dnumber(self, plot_number: np.array = None, transpose_plot=False):
@@ -174,6 +179,11 @@ class MNISTDataHandler:
 
 if __name__ == "__main__":
     hello = MNISTDataHandler(frequency=False)
+    train_dataset, val_dataset, test_dataset = hello.create_dataset()
+    for elem, label in train_dataset.shuffle(50).take(10):
+        hello.plot_3dnumber(elem.numpy(), True)
+        print(label)
+
     x = hello.x_train[::]
     y = hello.y_train[::]
     for i in range(0, 10, 1):

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import tensorflow.keras as k
 from Postprocessor import Postprocessing
 import numpy as np
+import skimage.transform as sk_tr
 import Visualization
 from base_postprocessing import BasePostprocessor
 import mil_pooling
@@ -12,8 +13,8 @@ from mil_visualizer import MilVisualizer
 from PreprocessMILImageData import PreprocessMILImageData
 from PreprocessData import PreprocessData
 from PreprocessMultiChannelMILImageData import PreprocessMultiChannelMILImageData
+import copy
 
-#  TODO: Make Instances apear in rigth order (evtl. sorted und instance descriptor an ende des file namens)
 class MilPostprocessor(BasePostprocessor):
 
     def __init__(self, model_name, dataset, file_list, crop):
@@ -39,22 +40,26 @@ class MilPostprocessor(BasePostprocessor):
         self.model_postprocessing(prediction, bag_prediction, model_ident)
 
     def mil_raw_postprocessing(self):
-        model_ident = ""
-        self.model = self.load_model(model_ident)
-        prediction = self.create_prediction(self.model)
-        prediction = prediction.reshape((-1, 10, 10))
-        self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
-                                                   mil_pooling_type="weighted")  # TODO
-        bag_prediction = self.pooling_algo.conduct_pooling()
-        save_at = self.sort_prediction_into_folder(model_ident, qualify=True, prediction=bag_prediction)
-        self.calc_accuracy(prediction, bag_prediction, save_at)
-        self.plot_roc(save_at, bag_prediction)
-        self.plot_history(save_at)
-        self.plot_raw(prediction, bag_prediction, os.path.join(save_at, "grad_cam"))
+        model_idents = ["prec_", "val_"]
+        for model_ident in model_idents:
+            self.model = self.load_model(model_ident)
+            prediction = self.create_prediction(self.model)
+            prediction = prediction.reshape((-1, 10, 10))
+            self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
+                                                       mil_pooling_type="weighted")  # TODO
+            bag_prediction = self.pooling_algo.conduct_pooling()
+            save_at = self.sort_prediction_into_folder(model_ident, qualify=True, prediction=bag_prediction)
+            self.calc_accuracy(prediction, bag_prediction, save_at)
+            self.plot_roc(save_at, bag_prediction)
+            self.plot_raw(prediction, bag_prediction, os.path.join(save_at, "grad_cam"))
+            self.plot_history(save_at)
+
 
     def model_postprocessing(self, instance_predictions, bag_predictions, ident, qualify=True):
         """
-
+prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_no_noise_all4_4_residual_mil_cfalse_nfalse_raw_label_smoothing
+prec_max_pool_relu_norm_lay4_little_drop_non_global_ave_pooling_n32_zeros_afalse_no_noise_all4_4_residual_mil_cfalse_nfalse_raw_label_smoothing
+prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_no_noise_all4_4_residual_mil_cfalse_nfalse_raw_label_smoothing
         :param prediction:
         :param model:
         :param ident: One of acc or loss (What was the criteria for early stopping)
@@ -73,10 +78,12 @@ class MilPostprocessor(BasePostprocessor):
         postprocessor = Postprocessing(postprocessing_model=self.model)
         all_heatmap_plots, all_images = postprocessor.return_grad_cam(self.test_ds, visualize_layer=0)
         upper_bound = instance_predictions.max()
-        #  TODO: CROP!
+        crop = 0
+        if self.crop:
+            crop = 60
         for bag_prediction, prediction, bag_heatmaps, bag_images, file in sorted(zip(bag_predictions, instance_predictions,
-                                                           np.swapaxes(all_heatmap_plots.reshape((-1, 10, 10, 204, 204)), 1, 2),
-                                                           np.swapaxes(all_images.reshape((-1, 10, 10, 204, 204)), 1, 2),
+                                                           np.swapaxes(all_heatmap_plots.reshape((-1, 10, 10, 204-crop, 204-crop)), 1, 2),
+                                                           np.swapaxes(all_images.reshape((-1, 10, 10, 204-crop, 204-crop)), 1, 2),
                                                            self.test_file_list),
                                                        key=lambda test_file: test_file[0]):
             #attention_weights = self.get_attention_weights(prediction)
@@ -109,8 +116,8 @@ class MilPostprocessor(BasePostprocessor):
             #                      title=f"Predicted: {bag_prediction}, True: {data_label}")
 
     def plot_raw(self, instance_predictions, bag_predictions, output_path):
+        up_lim = instance_predictions.max()
         instance_predictions = instance_predictions.reshape((-1, 100))  # Reshape to (sample_no, 100)
-        #  TODO: CROP!
         for bag_prediction, prediction, file in sorted(zip(bag_predictions, instance_predictions,
                                                            self.test_file_list),
                                                        key=lambda test_file: test_file[0]):
@@ -118,7 +125,8 @@ class MilPostprocessor(BasePostprocessor):
             fig, ax = plt.subplots(1, 1, figsize=(18, 18))
             im = plt.imread(file[0])
             ax.imshow(im, "gray")
-            ax.imshow(prediction.resize(im.shape), "hot", alpha=0.4)
+            heat_im = ax.imshow(sk_tr.resize(prediction, im.shape), "hot", alpha=0.4)
+            heat_im.set_clim(0, up_lim)
             ax.axis(False)
             fig.suptitle(f"Image Type {file[1]} with Prediction: {bag_prediction}", fontsize=16)
             plt.subplots_adjust(wspace=0, hspace=0)

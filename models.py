@@ -108,6 +108,11 @@ def classiRaw3Dmnist(input_size, normalizer: Normalization = None, reconstructio
     conv = Conv3D(256, 3, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
                   , kernel_regularizer=keras.regularizers.l2()
                   )(conv)
+    conv = AlphaDropout(0.2)(conv)
+    conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = Conv3D(256, 3, activation="selu", padding="same", kernel_initializer=init, bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2()
+                  )(conv)
     conv = Flatten()(conv)
     denseO = Dense(1, activation="linear", use_bias=True
                    , kernel_regularizer=keras.regularizers.l2()
@@ -129,6 +134,8 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
 
     init = tf.keras.initializers.RandomNormal(stddev=0.1)
     binit = tf.keras.initializers.RandomNormal(stddev=0.1)
+    init = tf.keras.initializers.HeNormal()
+    binit = tf.keras.initializers.HeNormal()
 
     # input
     inp = Input(shape=input_size, dtype="float32")
@@ -140,41 +147,68 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
     # pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
     #pinp = tf.keras.layers.GaussianNoise(0.1)(conv)
     #conv = pinp
-
-    conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init
-                  , kernel_regularizer=keras.regularizers.l2()
+    conv = keras.layers.GaussianNoise(0.005)(conv)
+    l2_value = 0.01
+    conv = AlphaDropout(0.05)(conv)
+    conv = Conv3D(16, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
+                  )(conv)
+    conv = Conv3D(16, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+                  bias_initializer=binit
+                  , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
                   )(conv)
     # conv = AlphaDropout(0.2)(conv)
-    conv = Dropout(0.2)(conv)
     conv = MaxPooling3D((2, 2, 2))(conv)
-    conv = Conv3D(128, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    conv = Conv3D(32, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
                   bias_initializer=binit
-                 , kernel_regularizer=keras.regularizers.l2()
+                 , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
                   )(conv)
+    # conv = Conv3D(32, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #              , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
+    #               )(conv)
     # conv = Dropout(0.2)(conv)
     conv = MaxPooling3D((2, 2, 2))(conv)
-    conv = Conv3D(256, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
                   bias_initializer=binit
-                  , kernel_regularizer=keras.regularizers.l2()
+                  , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
                   )(conv)
+    # conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
+    #               )(conv)
+    #conv = MaxPooling3D((2, 2, 2))(conv)
+
     # conv = Dropout(0.2)(conv)
     # conv = MaxPooling3D((2, 2, 2))(conv)
     # conv = Conv3D(512, 3, strides=1, activation="relu", padding="same", kernel_initializer=init,
     #               bias_initializer=binit
     #               , kernel_regularizer=keras.regularizers.l2()
     #               )(conv)
+    #conv = keras.layers.GlobalAveragePooling3D()(conv)
     conv = Flatten()(conv)
+    conv = AlphaDropout(0.3)(conv)
+    # conv = Dense(16, activation="relu"
+    #                , kernel_regularizer=keras.regularizers.l2()
+    #                )(conv)
     denseO = Dense(1, activation="linear"
-                   , kernel_regularizer=keras.regularizers.l2()
+                   , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
                    )(conv)
     outp = denseO
 
     # model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(learning_rate=1e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True),
+    model.compile(optimizer=Adam(learning_rate=6e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True,
+                                                                                           #label_smoothing=0.05
+                                                                                           ),
                   metrics=["accuracy"]
                   # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
                   )
+    # model.compile(optimizer=Adam(learning_rate=1e-4), loss = tf.keras.losses.MeanAbsoluteError(),
+    #               metrics=["accuracy"]
+    #               # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
+    #               )
     model.summary()
 
     return model

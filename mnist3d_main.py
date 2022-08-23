@@ -20,13 +20,15 @@ def calc_class_weights(labels: np.ndarray):
 import utils
 
 def image_run(batch_size, epochs, name):
-    mnist_data = mnist3d.MNISTDataHandler(frequency=True)
+    mnist_data = mnist3d.MNISTDataHandler(frequency=False)
     train_dataset, val_dataset, test_dataset = mnist_data.create_dataset()
     class_weights = calc_class_weights(mnist_data.y_train)
-    model = models.classiRaw3Dmnist_1dconv((16, 16, 16, 1))
+    model = models.classiRaw3Dmnist_small((16, 16, 16, 1))
+    k.utils.plot_model(model, show_shapes=True, expand_nested=True, show_layer_activations=False)
     utils.calc_receptive_field3D(model)
     history = model.fit(
-        train_dataset.batch(batch_size).shuffle(mnist_data.y_train.size),
+        #train_dataset.batch(batch_size),
+        train_dataset.shuffle(mnist_data.y_train.size).batch(batch_size),
         epochs=epochs,
         validation_data=val_dataset.batch(batch_size),
         callbacks=Callbacks.my_mnist_callbacks,
@@ -36,10 +38,12 @@ def image_run(batch_size, epochs, name):
 
 
 def image_eval(name):
-    mnist_data = mnist3d.MNISTDataHandler(frequency=True)
+    mnist_data = mnist3d.MNISTDataHandler(frequency=False)
     train_dataset, val_dataset, test_dataset = mnist_data.create_dataset()
     set_to_eval = test_dataset
-    model = k.models.load_model(f'savedModels/mnist{name}')
+    #model = k.models.load_model(f'savedModels/mnist{name}')
+    model = k.models.load_model(f'savedModels/mnist_bkp')
+
     # plt.figure()
     # plt.imshow(model.layers[2].get_weights()[0].reshape(32, 16))
     # plt.show()
@@ -55,8 +59,9 @@ def image_eval(name):
     for ground_truth, predicted, gt2 in zip(set_to_eval, model_output, mnist_data.y_test_org):
         print(f"Predicted: {predicted}, Ground Truth: {ground_truth[1]}, Truly: {gt2}")
         labels.append(ground_truth[1].numpy())
+    #pp = Postprocessing(model_output, mnist_data.y_test_org)
     pp = Postprocessing(model_output, mnist_data.y_test_org)
-    pp.binary_confusion_matrix(name=os.path.join("/home/julius/Documents/masterarbeit/arbeit_figures/confusion_fourier", name))
+    pp.binary_confusion_matrix(threshold=0.5, name=os.path.join("/home/julius/Documents/masterarbeit/arbeit_figures/confusion_fourier", name))
     print(np.max(model_output))
     print(np.mean(model_output))
     print(np.mean(model_output[np.array(labels) == 1]))
@@ -68,9 +73,9 @@ def main(eval=False):
     if eval:
         image_eval(name)
     else:
-        image_run(2, 40, name)
+        image_run(2, 50, name)
 
 
 if __name__ == "__main__":
-    #main()
+    main()
     main(eval=True)

@@ -1,4 +1,6 @@
 import os
+import random
+
 import tensorflow as tf
 import logging
 import numpy as np
@@ -44,6 +46,7 @@ class PreprocessRawData:
         self.normalize = normalize
         self.augment = augment
         self.train_label_list = None
+        self.selection_of_ascans = None
 
     def buffer_folder_generator(self):
         while True:
@@ -59,8 +62,15 @@ class PreprocessRawData:
         for i in range(len(self.buffer_folder_list)):
             folder = next(self._buffer_folder)
             files = os.listdir(folder)
-            files_full_path.extend([os.path.join(folder, file) for file in files])
-            file_labels.extend([int(file.split("_")[0]) for file in files])
+
+            del_from_pred = ["_1869_", "_5769_", "_6142_", "_22619_"]
+            new_files =  []
+            for file in files:
+                if not any([delete_id in file for delete_id in del_from_pred]):
+                    new_files.append(file)
+
+            files_full_path.extend([os.path.join(folder, file) for file in new_files])
+            file_labels.extend([int(file.split("_")[0]) for file in new_files])
 
         # TODO: This needs to sort such that first come the healthy or diabetic than the other
         self.calculation_file_list = sorted(zip(files_full_path, file_labels), key=lambda file: (
@@ -68,9 +78,11 @@ class PreprocessRawData:
             int(os.path.basename(file[0]).split("_")[-2]),
             int(os.path.basename(file[0]).split("_")[-1].split(".")[0])))
         file_labels = [label for file, label in self.calculation_file_list]
-        files = [file for file, label in self.calculation_file_list]
+        files_paths = [file for file, label in self.calculation_file_list]
+        print([int(os.path.basename(file).split(".")[0].split("_")[-2]) for file in files_paths][::100])
+        print(len(files_paths))
         self.train_label_list = file_labels[int(len(file_labels) * 0.075):-int(len(file_labels) * 0.075)]
-        return files, file_labels
+        return files_paths, file_labels
 
     def create_dataset_for_calculation(self):
         files_full_path, file_labels = self.get_all_tfrecords()
@@ -80,6 +92,7 @@ class PreprocessRawData:
             train_dataset = dataset.skip(int(len(files_full_path) * 0.075)).take(int(len(files_full_path) * 0.85))
             dataset_2 = dataset.skip(int(len(files_full_path) * 0.925)).take(int(len(files_full_path) * 0.075))
             val_dataset = dataset_1.concatenate(dataset_2)
+            val_dataset = val_dataset.shuffle(int(len(files_full_path)*0.15))
             train_dataset = train_dataset.shuffle(int(len(files_full_path)*0.85))
             train_dataset = train_dataset.interleave(lambda x: (tf.data.TFRecordDataset(x)),
                                          num_parallel_calls=tf.data.AUTOTUNE).prefetch(tf.data.AUTOTUNE)
@@ -96,6 +109,7 @@ class PreprocessRawData:
 
     def preprocess_data_and_save(self):
         self.delete_all_old()
+        self.selection_of_ascans = self.get_ascans()
         for file_name, label in self._input_file_list:
             try:
                 save_folder = next(self._buffer_folder)
@@ -107,8 +121,32 @@ class PreprocessRawData:
             except BaseException as err:
                 print(f"{err} just happend. Skipping Sample")
 
+    import random
+    def get_ascans(self):
+        itemsize = 2
+        b_size = 2048
+        c_size = 2044
+        a_size = 1536
+        ascan_from_file = 100  # 100 = 0.0023 % of A-Scans, 500 MB of Data
+
+        all_ascans = []
+        for file, label in self._input_file_list:
+            with open(file, "rb") as f:
+                for repetition in range(ascan_from_file):
+                    try:
+                        ascan_from_index = random.randint(0, int(2 * b_size * c_size / 4))
+                        index_in_file = 4 * itemsize * ascan_from_index * a_size
+                        f.seek(index_in_file, os.SEEK_SET)
+                        read_from_file = np.fromfile(f, dtype=np.dtype('<u2'), count=a_size)
+                        all_ascans.append(read_from_file)
+                    except BaseException as err:
+                        print(f"{err} just happend. Skipping Sample")
+        all_ascans = np.array(all_ascans)
+        return all_ascans
+
     def preprocess_dataset(self, file_name, label):
-        reader = BinaryMILDataset(reading_type="difference", background_sub=False)
+        reader = BinaryMILDataset(reading_type="normal", background_sub=False,
+                                  selection_of_ascans=self.selection_of_ascans)
         instance = reader.instance_from_binaries_generator(file_name)
         return instance, label
 
@@ -134,7 +172,7 @@ class PreprocessRawData:
     def get_test_train_file_lists(type="raw"):
         train_bin_healthy, test_bin_healthy = InputListUtils.find_binaries_test_train(r"^H([0-9]|[0-9][0-9])", 0,
                                                                        location=InputListUtils.server_location, type=type)
-        train_bin_diabetic, test_bin_diabetic = InputListUtils.find_binaries_test_train(r"^D([2-9][0-9]|[0-9][0-9][0-9])$", 1,
+        train_bin_diabetic, test_bin_diabetic = InputListUtils.find_binaries_test_train(r"^D([6-9][0-9]|[0-9][0-9][0-9])$", 1,
                                                                          location=InputListUtils.server_location, type=type)
         train_list = train_bin_healthy + train_bin_diabetic
         test_list = test_bin_healthy + test_bin_diabetic

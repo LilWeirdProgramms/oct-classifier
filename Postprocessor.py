@@ -30,6 +30,19 @@ class Postprocessing:
         disp.plot(ax=ax)
         plt.savefig(name)
 
+    # def non_binary_confusion(self, threshold=0, name="results/non_binary_confusion_matrix.png"):
+    #     self.prediction_results = self.prediction_results > threshold
+    #     self.prediction_results = self.belonging_labels
+    #     self.prediction_results = [label if result for result, label in zip(self.prediction_results, self.belonging_labels)]
+    #     cm = confusion_matrix(self.belonging_labels, self.prediction_results, labels=list(range(10)))
+    #     print(cm)
+    #     disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+    #                                   display_labels=list(range(10)))
+    #     fig, ax = plt.subplots(figsize=(10, 10))
+    #     disp.plot(ax=ax)
+    #     plt.savefig(name)
+
+
     def return_grad_cam(self, dataset, name_list=None, visualize_layer=0, folder_path=None):
         layer_name_vis = self.get_conv_layer_name(visualize_layer)
         all_heatmap_plots = []
@@ -323,7 +336,7 @@ if __name__ == "__main__":
 
     #tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
     file_list = PreprocessData.load_file_list(test_or_train="test", angio_or_structure="images")
-    pid = PreprocessImageData(file_list, rgb=False, crop=False)
+    pid = PreprocessImageData(file_list, rgb=False, crop=300)
     pid._buffer_folder = "tests/test"
     pid.preprocess_data_and_save()
     ds = pid.create_dataset_for_calculation()
@@ -342,6 +355,6 @@ if __name__ == "__main__":
     pp = Postprocessing(prediction_results=np.zeros((len(file_list), )),
                         belonging_labels=np.zeros((len(file_list), )),
                         postprocessing_model=model)
-    pp.grad_cam_images(dataset=ds, folder_path="tests/", visualize_layer=0)
+    pp.return_grad_cam(dataset=ds, folder_path="tests/", visualize_layer=0)
 
 

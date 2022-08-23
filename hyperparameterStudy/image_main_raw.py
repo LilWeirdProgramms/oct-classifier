@@ -39,18 +39,18 @@ import Callbacks
 
 #  TODO: Create Factory
 hyperparameter_list = Hyperparameter(
-    downsample=["stride"],  # , "stride"
+    downsample=["max_pool", "ave_pool"],  # , "stride"
     activation=["selu"],  # , "relu_norm", "relu_norm",
     conv_layer=["lay2"],  # "lay4",
-    dropout=["no_drop"],  # "no_drop", , "lot_drop", little_drop
+    dropout=["lot_drop"],  # "no_drop", , "lot_drop", little_drop
     regularizer=["little_l2"],  # "l2",
     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
-    init=["zeros"],  # , "same"
+    init=["same"],  # , "same"
     augment=["afalse"],  # "augment", "augment_strong",
-    noise=["no_noise"],  # "no_noise"
-    repetition=["fft_denoise3"],
-    residual=["normal"], # "residual",
+    noise=["noise"],  # "nfalse"
+    repetition=["all4_fullpca_5"],
+    residual=["residual"], # "residual",
     mil=["mil"],
     crop=["cfalse"],  #cfalse
     normalize=["nfalse"],  # nfalse
@@ -69,7 +69,7 @@ class ImageMain:
         mixed_precision.set_global_policy('mixed_float16')
         self.model_folder = "results/hyperparameter_study/mil/models"
 
-        # TODO:  look at slices of srtucture. Look at mean of raw data
+        # TODO:  Idea : Reverse PCA before training?
 
         # TODO: these should all go into a class where only one model is calced
         self.image_size = None  # e.g. (204, 204, 1)
@@ -125,20 +125,21 @@ class ImageMain:
             self.model_name = model_name
             self.model_parameters = model_parameters
             self.train()
-            #self.eval()  # TODO
+            self.eval()  # TODO
 
     def eval_all(self):
         list_of_model_names, list_of_model_parameters = self.generate_model_names()
         for model_name in list_of_model_names:
             self.model_name = model_name
-            if os.path.exists(os.path.join(self.model_folder, model_name)):
-                self.eval()
+            #if os.path.exists(os.path.join(self.model_folder, model_name)):
+            self.eval()
+                # max_pool_relu_norm_lay4_little_drop_non_global_ave_pooling_n32_zeros_afalse_no_noise_all4_4_residual_mil_cfalse_nfalse_raw_label_smoothing
+                # prec_max_pool_relu_norm_lay4_little_drop_non_global_ave_pooling_n32_zeros_afalse_no_noise_all4_4_residual_mil_cfalse_nfalse_raw_label_smoothing
 
     # This is actual Main Section of Image Calculation
     def train(self):
         self.create_dataset("train")
         self.train_model()
-        self.eval()
 
     def eval(self):
         self.create_dataset("test")
@@ -151,7 +152,7 @@ class ImageMain:
     def create_dataset(self, data_type="train"):
         self.create_params_from_model_name()
 
-        # TODO: create static method in rawdata class than factory
+        # TODO: create static method in rawdata class then factory
         #file_list = self.get_file_list(data_type)
         if data_type == "train":
             file_list, _ = PreprocessRawData.get_test_train_file_lists()
@@ -166,7 +167,7 @@ class ImageMain:
         else:
             pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
-        pid.preprocess_data_and_save()
+        #pid.preprocess_data_and_save()
         if data_type == "train":
             self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
             self.class_weights = PreprocessRawData.calc_weights(pid.train_label_list)  # TODO factory
@@ -187,20 +188,20 @@ class ImageMain:
     def train_model(self):
         #im = ImageModel(self.model_parameters)  # TODO factory
         #self.image_size = self.get_datasize()
-        NUM_SAMPLES_TRAIN = 180
-        NUM_SAMPLES_VAL = 15
-        BATCH_SIZE = 1
-        NUM_WALKTHROUGH = 3
+        NUM_SAMPLES_TRAIN = 30000
+        NUM_SAMPLES_VAL = 4000
+        BATCH_SIZE = 16
+        NUM_WALKTHROUGH = 30
         CHECKPOINTS = 30
         train_steps = int(NUM_SAMPLES_TRAIN * NUM_WALKTHROUGH / (BATCH_SIZE * CHECKPOINTS))
         val_steps = int(NUM_SAMPLES_VAL * NUM_WALKTHROUGH / (BATCH_SIZE * CHECKPOINTS))
 
         im = RawModel(self.model_parameters)  # TODO factory
-        self.image_size = (204, 204, 1536, 1)
+        self.image_size = (51, 51, 51, 1)
         model = im.model(output_to=logging.info, input_shape=self.image_size)
         model.fit(self.ds_train.batch(BATCH_SIZE).repeat(),
                   validation_data=self.ds_val.batch(BATCH_SIZE).repeat(),
-                  epochs=50,
+                  epochs=100,
                   callbacks=Callbacks.raw_callback(self.model_name),  #TODO
                   class_weight=self.class_weights,
                   use_multiprocessing = True,
@@ -217,15 +218,19 @@ class ImageMain:
         visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="images")
         visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
                                                                             int(file[0].split("_")[-1][:-4])))
+        del_from_pred = ["_15780", "_20472"]
+        new_files = []
+        for file, label in visualize_file_list:
+            if not any([delete_id in file for delete_id in del_from_pred]):
+                new_files.append((file, label))
+
+        info = [int(os.path.basename(file).split(".")[0].split("_")[-1]) for file, label in new_files]
+        print(info)
+        print(len(info))
+
         # TODO: sort file list and dataset together (should already be sorted) just pack into loop
-        hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop)
+        hp = MilPostprocessor(self.model_name, self.ds_test, new_files, crop=self.crop)
         hp.mil_raw_postprocessing()
-        if "structure" in self.model_name or "combined" in self.model_name:
-            visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="structure")
-            visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
-                                                                                int(file[0].split("_")[-1][:-4])))
-            hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop)
-            hp.mil_postprocessing()
 
     def get_datasize(self):
         for one_element, label in self.ds_train.take(1):
@@ -266,4 +271,4 @@ if __name__ == "__main__":
     os.chdir("../")
     keras.backend.clear_session()
     run_image = ImageMain()
-    run_image.eval_all()
+    run_image.run_all()

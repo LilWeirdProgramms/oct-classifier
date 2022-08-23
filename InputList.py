@@ -1,15 +1,15 @@
 import os
 
 _set_of_healthy_training_files = {
-    "H3/rechts/raw_1536x2048x2045x2_9201.bin",  # Bir
-    "H3/links/raw_1536x2048x2045x2_9579.bin",
-    "H4/rechts/raw_1536x2048x2045x2_12417.bin",  # Jon
-    "H4/links/raw_1536x2048x2045x2_13025.bin",
-    "H5/rechts/raw_1536x2048x2045x2_17600.bin",  # Anj
-    "H5/links/raw_1536x2048x2045x2_18044.bin",
-    "H6/rechts/raw_1536x2048x2045x2_8042.bin",  # sar
-    "H6/links/raw_1536x2048x2045x2_8920.bin",
-    "H7/rechts/raw_1536x2048x2045x2_9772.bin"  # kath
+    #"H03/rechts/raw_1536x2048x2045x2_9201.bin",  # Bir
+    "H03/links/raw_1536x2048x2045x2_9579.bin",
+    "H04/rechts/raw_1536x2048x2045x2_12417.bin",  # Jon
+    "H04/links/raw_1536x2048x2045x2_13025.bin",
+    "H05/rechts/raw_1536x2048x2045x2_17600.bin",  # Anj
+    "H05/links/raw_1536x2048x2045x2_18044.bin",
+    "H06/rechts/raw_1536x2048x2045x2_8042.bin",  # sar
+    "H06/links/raw_1536x2048x2045x2_8920.bin",
+    "H07/rechts/raw_1536x2048x2045x2_9772.bin"  # kath
 }
 _set_of_diabetic_training_files = {
     "D78/rechts/raw_1536x2048x2045x2_18038.bin",
