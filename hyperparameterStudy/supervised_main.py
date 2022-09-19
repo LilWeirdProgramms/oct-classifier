@@ -40,17 +40,17 @@ from hyper_postprocessing import HyperPostprocessor
 
 #  TODO: Create Factory
 hyperparameter_list = Hyperparameter(
-    downsample=["ave_pool"],  # , "stride"
-    activation=["selu"],  # , "relu_norm", "relu_norm",
-    conv_layer=["lay3"],  # "lay4",
-    dropout=["little_drop"],  # "no_drop", , "lot_drop"
+    downsample=["max_pool"],  # , "stride"
+    activation=["relu_norm"],  # , "relu_norm", "relu_norm",
+    conv_layer=["lay4"],  # "lay4",
+    dropout=["no_drop"],  # "no_drop", , "lot_drop"
     regularizer=["little_l2"],  # "l2",
-    reduction=["flatten"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
+    reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
     init=["zeros"],  # , "same"
-    augment=["augment"],  # "augment", "augment_strong",
+    augment=["afalse"],  # "augment", "augment_strong",
     noise=["no_noise"],  # "no_noise"
-    repetition=["fft_denoise4"],
+    repetition=["final"],
     residual=["residual"], # "residu We al",
     mil=["supervised"],
     crop=["cfalse"],  #cfalse
@@ -58,6 +58,7 @@ hyperparameter_list = Hyperparameter(
     image_type=["images"],  #
     label_smoothing=["lfalse"]
 )
+
 # hyperparameter_list = Hyperparameter(
 #     downsample=["ave_pool"],  # , "stride"
 #     activation=["selu"],  # , "relu_norm", "relu_norm",
@@ -206,7 +207,7 @@ class ImageMain:
         model = im.model(output_to=logging.info, input_shape=self.image_size)
         model.fit(self.ds_train.batch(1),
                   validation_data=self.ds_val.batch(1),
-                  epochs=40,
+                  epochs=25,
                   callbacks=Callbacks.hyper_image_callback(self.model_name),  #TODO
                   class_weight=self.class_weights)
 
@@ -218,7 +219,7 @@ class ImageMain:
         # TODO:
         data_type = "test"
         file_list = PreprocessData.load_file_list(test_or_train=data_type, angio_or_structure="images")
-        pid = PreprocessImageData(file_list, rgb=False, crop=0)
+        pid = PreprocessImageData(file_list, rgb=False, crop=300)
         pid.preprocess_data_and_save()
         ds_test = pid.create_dataset_for_calculation()
         hp = HyperPostprocessor(self.model_name, ds_test, pid.calculation_file_list)

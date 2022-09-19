@@ -1,3 +1,5 @@
+import logging
+
 import tensorflow as tf
 import tensorflow.keras as k
 import mil_pooling
@@ -34,7 +36,7 @@ class ImageModel:
                                   kernel_regularizer=self.regularizer
                                   )(inp)
         if self.firstdropout:
-            out = k.layers.Dropout(0.2)(out)
+            out = k.layers.Dropout(0.05)(out)
         for i in range(1, self.num_layers + 1):
             if self.residual:
                 out_short = out
@@ -83,7 +85,7 @@ class ImageModel:
         model = k.Model(inp, out)
         model.summary(print_fn=output_to)
         if self.label_smoothing:
-            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.2),
+            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.02),
                           optimizer=k.optimizers.Adam(learning_rate=1e-4),
                           metrics=["accuracy"
                                    , TrueNegatives(from_logits=True)
@@ -91,6 +93,7 @@ class ImageModel:
                                    , FalseNegatives(from_logits=True)
                                    , FalsePositives(from_logits=True)
                               , Precision(from_logits=True)
+                              , MilMetric()
                                    ])
         else:
             model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True),
@@ -179,6 +182,53 @@ class ImageModel:
                 case "label_smoothing":
                     self.label_smoothing = True
 
+class MilMetric(tf.keras.metrics.AUC):
+    def __init__(self, name=None, **kwargs):
+        super(MilMetric, self).__init__(name="mil_metric")
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        prediction = tf.reshape(y_pred, (-1, 100))
+        pooled_predicition = tf.reduce_max(prediction, axis=1)
+        #print(pooled_predicition.numpy())
+        #print(tf.nn.sigmoid(pooled_predicition).numpy())
+
+
+        label = tf.reshape(y_true, (-1, 100))
+        pooled_label = tf.cast(tf.reduce_mean(label, axis=1), tf.int32)
+        #print(pooled_label.numpy())
+        super().update_state(pooled_label, tf.nn.sigmoid(pooled_predicition), sample_weight)
+
+# class MyCustomMetric(tf.keras.metrics.Metrics):
+#
+#     def __init__(self, **kwargs):
+#         # Initialise as normal and add flag variable for when to run computation
+#         super(MyCustomMetric, self).__init__(**kwargs)
+#         self.metric_variable = self.add_weight(name='metric_varaible', initializer='zeros')
+#         self.update_metric = tf.Variable(False)
+#
+#     def update_state(self, y_true, y_pred, sample_weight=None):
+#         # Use conditional to determine if computation is done
+#         if self.update_metric:
+#             # run computation
+#             self.metric_variable.assign_add(computation_result)
+#
+#     def result(self):
+#         return self.metric_variable
+#
+#     def reset_states(self):
+#         self.metric_variable.assign(0.)
+#
+# class ToggleMetrics(tf.keras.callbacks.Callback):
+#     '''On test begin (i.e. when evaluate() is called or
+#      validation data is run during fit()) toggle metric flag '''
+#     def on_test_begin(self, logs):
+#         for metric in self.model.metrics:
+#             if 'MilMetric' in metric.name:
+#                 metric.on.assign(True)
+#     def on_test_end(self,  logs):
+#         for metric in self.model.metrics:
+#             if 'MilMetric' in metric.name:
+#                 metric.on.assign(False)
 
 class TruePositives(tf.keras.metrics.TruePositives):
     def __init__(self, from_logits=False, *args, **kwargs):
@@ -239,4 +289,28 @@ class Precision(tf.keras.metrics.Precision):
         else:
             super(Precision, self).update_state(y_true, y_pred, sample_weight)
 
+if __name__ == "__main__":
+    import numpy as np
+    import sklearn.metrics as metrics
+
+    import matplotlib.pyplot as plt
+
+    with tf.device("cpu:0"):
+        mm = MilMetric()
+        prediction = np.arange(0, 80, 0.1) - 35
+        label = np.ones((800, ))
+        label[:200] = 0
+        label[-300:-100] = 0
+        prediction = prediction.astype("float32")
+        auc = metrics.roc_auc_score(label, prediction)
+        print(auc)
+        for i in range(8):
+            mm.update_state(label[:int(100*(i+1))], prediction[:int(100*(i+1))])
+            print(mm.result().numpy())
+        mm = MilMetric()
+        mm.update_state(label, prediction)
+        print(mm.result().numpy())
+        tpr, fpr, threshold = metrics.roc_curve(label, prediction)
+        plt.plot(tpr, fpr)
+        plt.show()
 

@@ -63,8 +63,8 @@ def train_vgg(model_name):
     # TODO: class weights
 
 
-    ds_train = ds_train.map(lambda x, y: (tf.keras.applications.vgg16.preprocess_input(x), y))
-    ds_val = ds_val.map(lambda x, y: (tf.keras.applications.vgg16.preprocess_input(x), y))
+    #ds_train = ds_train.map(lambda x, y: (tf.keras.applications.vgg16.preprocess_input(x), y))
+    #ds_val = ds_val.map(lambda x, y: (tf.keras.applications.vgg16.preprocess_input(x), y))
 
     for elem in ds_train.take(1):
         print(elem[1])
@@ -78,6 +78,6 @@ def train_vgg(model_name):
                   class_weight=weights)
 
 if __name__ == "__main__":
-    name = "vgg3layers4"
+    name = "final_vgg"
     #train_vgg(name)
     eval_vgg(name)

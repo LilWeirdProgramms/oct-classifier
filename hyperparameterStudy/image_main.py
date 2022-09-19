@@ -15,7 +15,8 @@ from PreprocessData import PreprocessData
 from PreprocessRawData import PreprocessRawData
 from RawModelBuilder import RawModel
 import Callbacks
-
+import models
+import vgg16_main
 
 # hyperparameter_list = Hyperparameter(
 #     downsample=["max_pool", "ave_pool"],  # , "stride"
@@ -56,26 +57,26 @@ import Callbacks
 #     normalize=["nfalse"],  # nfalse
 #     image_type=["images"],  #
 #     label_smoothing=["lfalse"]
-# )
+# )ave_pool_selu_lay3_lot_drop_l2_global_ave_pooling_n32_zeros_augment_noise_final_residual_mil_cfalse_normalize_images_label_smoothing
 #  TODO: Create Factory
 hyperparameter_list = Hyperparameter(
     downsample=["ave_pool"],  # , "stride"
     activation=["selu"],  # , "relu_norm", "relu_norm",
-    conv_layer=["lay4"],  # "lay4",
-    dropout=["no_drop"],  # "no_drop", , "lot_drop"
-    regularizer=["little_l2"],  # "l2",
+    conv_layer=["lay3"],  # "lay4",
+    dropout=["lot_drop"],  # "no_drop", , "lot_drop"
+    regularizer=["l2"],  # "l2",
     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
     init=["zeros"],  # , "same"
-    augment=["afalse"],  # "augment", "augment_strong",
-    noise=["no_noise"],  # "no_noise"
-    repetition=["fft_denoise_on"],
+    augment=["augment"],  # "augment", "augment_strong",
+    noise=["noise"],  # "no_noise"
+    repetition=["final"],
     residual=["residual"], # "residual",
     mil=["mil"],
     crop=["cfalse"],  #cfalse
-    normalize=["nfalse"],  # nfalse
-    image_type=["structure"],  #
-    label_smoothing=["lfalse"]
+    normalize=["normalize"],  # nfalse
+    image_type=["images"],  #
+    label_smoothing=["label_smoothing"]
 )
 
 
@@ -165,14 +166,16 @@ class ImageMain:
     def create_dataset(self, data_type="train"):
         self.create_params_from_model_name()
         file_list = self.get_file_list(data_type)
+        self.file_list = file_list
         if self.image_type == "combined":
             pid = PreprocessMultiChannelMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
-        elif self.image_type == "raw":
-            pid = PreprocessRawData(file_list)
+        #elif self.image_type == "raw":
+        #    pid = PreprocessRawData(file_list)
         else:
             pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
+            # TODO:
         pid.preprocess_data_and_save()
         if data_type == "train":
             self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
@@ -198,9 +201,9 @@ class ImageMain:
         # self.image_size = (204, 204, 1536, 1)
         model = im.model(output_to=logging.info, input_shape=self.image_size)
         k.utils.plot_model(model, show_shapes=True, expand_nested=True)
-        model.fit(self.ds_train.batch(16),
-                  validation_data=self.ds_val.batch(1),
-                  epochs=50,
+        model.fit(self.ds_train.batch(100),
+                  validation_data=self.ds_val.batch(200),
+                  epochs=30,
                   callbacks=Callbacks.mil_pooling_callback(self.model_name),  #TODO
                   class_weight=self.class_weights)
 
@@ -214,13 +217,16 @@ class ImageMain:
         visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
                                                                             int(file[0].split("_")[-1][:-4])))
         # TODO: sort file list and dataset together (should already be sorted) just pack into loop
-        hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop)
+        self.calculate_threshold()
+        hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop, threshold=self.best_threshold)
         hp.mil_postprocessing()
         if "structure" in self.model_name or "combined" in self.model_name:
             visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="structure")
             visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
                                                                                 int(file[0].split("_")[-1][:-4])))
-            hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop)
+            self.calculate_threshold()
+            hp = MilPostprocessor(self.model_name, self.ds_test, visualize_file_list, crop=self.crop,
+                                  threshold=self.best_threshold)
             hp.mil_postprocessing()
 
     def get_datasize(self):
@@ -248,6 +254,42 @@ class ImageMain:
             else:
                 self.create_plot(my_data, data[1].numpy(), k, bonus)
 
+    def calculate_threshold(self):
+        import numpy as np
+        import mil_pooling
+        from sklearn import metrics
+
+        file_list = self.get_file_list("train")
+        pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type="train",
+                                     normalize=self.normalize, augment=self.augment)
+        self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
+
+        labels = [int(x / 24) for x in range(48)]
+
+        full_loss_model_path = os.path.join("results/hyperparameter_study/mil/models", self.model_name)
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric})
+
+        prediction = model.predict(self.ds_val.batch(1), verbose=1)
+        prediction = prediction.reshape((-1, 10, 10))
+        prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
+        pooling_algo = mil_pooling.MilPooling(prediction, "mil_pooling_" + self.model_name,
+                                                   mil_pooling_type="max_pooling")  # TODO
+        bag_predictions = pooling_algo.conduct_pooling()
+        fpr, tpr, threshold = metrics.roc_curve(labels, bag_predictions, pos_label=1)
+        gmean = np.sqrt(tpr * (1 - fpr))
+        #gmean = gmean[fpr < fpr_limit]
+        index = np.argmax(gmean)
+        best_threshold = threshold[index]
+        self.best_threshold = best_threshold
+        val_file_list = self.file_list[:24] + self.file_list[-24:]
+        #hp = MilPostprocessor(self.model_name, self.ds_val, val_file_list, crop=self.crop, threshold=best_threshold)
+        #hp.mil_postprocessing()
+
+        print(best_threshold)
+
+
+
+
     def create_plot(self, image, label, k, bonus):
         plt.figure(figsize=(12, 12))
         plt.grid(False)
@@ -259,6 +301,7 @@ class ImageMain:
 
 
 if __name__ == "__main__":
+    import supervised_main
     os.chdir("../")
     run_image = ImageMain()
-    run_image.run_all()
+    run_image.eval_all()

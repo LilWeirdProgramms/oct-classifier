@@ -26,7 +26,7 @@ class RawModel:
         inp = k.layers.Input(shape=input_shape)
         out = inp
         if self.noise:
-            out = tf.keras.layers.GaussianNoise(0.2)(out)
+            out = tf.keras.layers.GaussianNoise(0.02)(out)
         out = k.layers.Conv3D(self.first_layer_nodes,
                                   (3, 3, 3),
                                   strides=self.stride,
@@ -86,7 +86,7 @@ class RawModel:
         model = k.Model(inp, out)
         model.summary(print_fn=output_to)
         if self.label_smoothing:
-            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.1),
+            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.01),
                           optimizer=k.optimizers.Adam(learning_rate=5e-5),
                           metrics=["accuracy"
                                    , TrueNegatives(from_logits=True)

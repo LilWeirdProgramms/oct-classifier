@@ -10,6 +10,11 @@ import copy
 class MNISTDataHandler:
     """
     Is it the number 5 MNIST
+    Bagsize=4: 1220 elements (2440)
+
+Bagsize=5: 1445 elements 2890
+
+Bagsize=2: 860 elements 1720
     """
 
     def __init__(self, data_size=2000, frequency=False):
@@ -43,6 +48,7 @@ class MNISTDataHandler:
         self.frequency = frequency
         if self.frequency:
             self.create_frequency_dataset()
+        self.cntr = 0
 
     # @ staticmethod
     # def create_mnist_bags(data, labels, bagsize=8):
@@ -57,6 +63,7 @@ class MNISTDataHandler:
     def create_mnist_bags(self, data, labels: np.ndarray, bagsize=2):
         org_labels = labels
         #original_true = np.logical_or(labels == 1, labels == 3).astype("int16")
+        correct_num = labels[labels == 4].size + labels[labels == 9].size
         original_true = org_labels
         noise_reduced_ret = copy.deepcopy(original_true)
 
@@ -85,6 +92,9 @@ class MNISTDataHandler:
                 true_instances = np.logical_or(org_labels[-(org_labels.size % bagsize):] == 4,
                                                org_labels[-(org_labels.size % bagsize):] == 9)
                 labels[-(org_labels.size % bagsize):] = np.logical_or(true_instances, np.any(true_instances))
+        correct_num2 = labels[labels == 0].size
+        print(f"Falsly Labeled Elements:{labels.size - correct_num2 - correct_num}")
+        print(f"Total Training:{labels.size}")
         return labels, noise_reduced_ret
 
     def put_data_in_bags(self):
@@ -100,7 +110,7 @@ class MNISTDataHandler:
         """
         if data is None:
             data = self.random_number2
-        fourier_transformed_sample = np.abs(fft(data, axis=0)).astype("float32")
+        fourier_transformed_sample = np.angle(fft(data, axis=0)).astype("float32")
         return fourier_transformed_sample
 
     def create_frequency_dataset(self):
@@ -135,14 +145,15 @@ class MNISTDataHandler:
         return resampled_ds, resampled_ds2
 
     def standardize(self):
+        ascan_length = 16
         scaler = StandardScaler()
-        scaler.fit(self.x_train.reshape(self.train_size, 16 * 16 * 16))
-        self.x_train = scaler.transform(self.x_train.reshape(self.train_size, 16 * 16 * 16))\
-            .reshape(self.train_size, 16, 16, 16, 1)
-        self.x_val = scaler.transform(self.x_val.reshape(self.val_size, 16 * 16 * 16))\
-            .reshape(self.val_size, 16, 16, 16, 1)
-        self.x_test = scaler.transform(self.x_test.reshape(self.val_size, 16 * 16 * 16))\
-            .reshape(self.val_size, 16, 16, 16, 1)
+        scaler.fit(self.x_train.reshape(self.train_size, ascan_length * 16 * 16))
+        self.x_train = scaler.transform(self.x_train.reshape(self.train_size, ascan_length * 16 * 16))\
+            .reshape(self.train_size, ascan_length, 16, 16, 1)
+        self.x_val = scaler.transform(self.x_val.reshape(self.val_size, ascan_length * 16 * 16))\
+            .reshape(self.val_size, ascan_length, 16, 16, 1)
+        self.x_test = scaler.transform(self.x_test.reshape(self.val_size, ascan_length * 16 * 16))\
+            .reshape(self.val_size, ascan_length, 16, 16, 1)
 
     def create_dataset(self):
         self.put_data_in_bags()
@@ -171,10 +182,32 @@ class MNISTDataHandler:
         plot_number[:, 10, 10] = np.zeros((16,))
         if transpose_plot == True:
             plot_number = np.transpose(plot_number, axes=[1, 2, 0])
-        fig = plt.figure()
+        fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_zlabel("z")
+        ax.set_ylabel("y")
+        ax.set_xlabel("x")
         ax.voxels(plot_number > 0.05, alpha=1, edgecolors="k")
         plt.show()
+
+    def show_3dnumber(self, plot_number: np.array = None, transpose_plot=False):
+        if plot_number is None:
+            plot_number = self.x_train[0]
+        plot_number = plot_number.reshape((16, 16, 16))
+        plot_number[:, 8, 8] = np.zeros((16,))
+        plot_number[:, 6, 8] = np.zeros((16,))
+        plot_number[:, 10, 10] = np.zeros((16,))
+        if transpose_plot == True:
+            plot_number = np.transpose(plot_number, axes=[1, 2, 0])
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.grid(False)
+        ax.axis('off')
+        ax.voxels(plot_number > 0.05, alpha=1, edgecolors="k")
+        fig.savefig(f"/home/julius/Documents/masterarbeit/arbeit_figures/final/image_examples/image{self.cntr}.png")
+        self.cntr += 1
+        #plt.show()
+
 
 
 if __name__ == "__main__":

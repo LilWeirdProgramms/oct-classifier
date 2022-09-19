@@ -157,4 +157,3 @@ if __name__ == "__main__":
         plt.plot(a[196, 36, :, 0])
         plt.show()
         break
-

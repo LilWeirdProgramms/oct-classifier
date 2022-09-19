@@ -93,20 +93,22 @@ my_callbacks = [
     tboard_callback
 ]
 
-my_mnist_callbacks = [
+def my_mnist_callbacks(name: str):
+    return [
     CustomCallback(),
     history_checkpoint_callback,
     tboard_callback_mnist,
     keras.callbacks.ModelCheckpoint(
-        filepath=f"savedModels/mnist_bkp",
+        filepath=f"savedModels/mnist_{name}",
         save_weights_only=False,
-        monitor='val_loss',
-        mode='min',
+        monitor='val_mil_metric',
+        mode='max',
         save_best_only=True
     ),
     keras.callbacks.EarlyStopping(
-        monitor='val_accuracy',
-        patience=8,
+        monitor='val_mil_metric',
+        patience=20,
+        mode="max"
     )
 ]
 
@@ -135,7 +137,7 @@ def mil_pooling_callback(name: str):
         keras.callbacks.ModelCheckpoint(
             filepath=f"results/hyperparameter_study/mil/models/{name}",
             save_weights_only=False,
-            monitor='val_precision',
+            monitor='val_mil_metric',
             mode='max',
             save_best_only=True
         ),

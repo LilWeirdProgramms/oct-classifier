@@ -7,6 +7,7 @@ from Postprocessor import Postprocessing
 import numpy as np
 import Visualization
 from sklearn import metrics
+import models
 
 class BasePostprocessor:
 
@@ -36,21 +37,27 @@ class BasePostprocessor:
     def plot_history(self, output_path):
         sns.set_theme()
         history_df = pd.read_csv(self.history_path)
-        fig, ax = plt.subplots(1, 2, figsize=(18, 7))
+        fig, ax = plt.subplots(1, 2, figsize=(12, 5))
         ax[0].plot(history_df["epoch"], history_df["loss"])
         ax[0].plot(history_df["epoch"], history_df["val_loss"])
         ax[0].legend(["Training Loss", "Validation Loss"])
+        ax[0].set_xlabel("Epoch")
+        ax[0].set_ylabel("Loss")
         ax[1].plot(history_df["epoch"], history_df["accuracy"])
         ax[1].plot(history_df["epoch"], history_df["val_accuracy"])
         ax[1].legend(["Training Accuracy", "Validation Accuracy"])
+        ax[1].set_xlabel("Epoch")
+        ax[1].set_ylabel("Accuracy")
         #  TODO: Tight Layout somehow throws error in debug mode (python 3.10 bug) (downgrade to solve)
         plt.tight_layout()
         fig.savefig(os.path.join(output_path, "history"))
         plt.close()
-        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.plot(history_df["epoch"], history_df["precision"])
         ax.plot(history_df["epoch"], history_df["val_precision"])
         ax.legend(["Training Precision", "Validation Precision"])
+        plt.xlabel("Epoch")
+        plt.ylabel("Precision")
         plt.tight_layout()
         fig.savefig(os.path.join(output_path, "precision"))
         plt.close()
@@ -58,7 +65,7 @@ class BasePostprocessor:
 
     def plot_roc(self, output_path, prediction):
         sns.set_theme()
-        fig = plt.figure(figsize=(7, 7))
+        fig = plt.figure(figsize=(5, 5))
         labels = [label for path , label in self.test_file_list]
         fpr, tpr, threshold = metrics.roc_curve(labels, prediction, pos_label=1)
         auc = metrics.roc_auc_score(labels, prediction)
@@ -77,7 +84,7 @@ class BasePostprocessor:
 
     def load_model(self, model_type):
         full_loss_model_path = os.path.join(self.best_models_path, model_type + self.model_name)
-        model = k.models.load_model(full_loss_model_path)
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric})
         return model
 
     # TODO: Implement for MIL
@@ -108,7 +115,7 @@ class BasePostprocessor:
         :return:
         """
         bag_predictions = bag_predictions.reshape((bag_predictions.size, ))
-        only_a_bit_diabetic = ["5577", "6338", "18832", "27719", "28065"]
+        only_a_bit_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "1252", "1082"]
         result_list = list(zip(bag_predictions, self.test_file_list))
         very_diabetic = sorted([one_elem for one_elem in result_list if one_elem[1][1] == 1 and
                                 not any(x in one_elem[1][0] for x in only_a_bit_diabetic)])
@@ -126,6 +133,32 @@ class BasePostprocessor:
         score += 2 * (abs(same_image_score[0] - same_image_score[1]) < 0.2 * bag_predictions.std())
         evaluated_folder = str(score)
         return evaluated_folder
+
+    def plot_real_distribution(self, prediction, output_path):
+        no_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "19077", "28477", "1252", "1082"]
+        only_a_bit_diabetic = ["29122", "28832", "28810", "187", "32730"]
+        real_class = []
+        for truth in self.test_file_list:
+            if any([x in truth[0] for x in no_diabetic]):
+                real_class.append("No Signs")
+            elif any([x in truth[0] for x in only_a_bit_diabetic]):
+                real_class.append("Minor")
+            # else:
+            #     real_class.append(int(3 * truth[1]))
+            elif truth[1] == 1:
+                real_class.append("Severe")
+            elif truth[1] == 0:
+                real_class.append("Healthy")
+        df = pd.DataFrame(
+        {"Prediction": prediction.reshape(-1, ), "Underlying Class": real_class})
+        sns.set_theme(style="whitegrid")
+        fig = plt.figure(figsize=(5, 5))
+        sns.boxplot(x="Underlying Class", y="Prediction", data=df)
+        plt.title("Predictions Sorted by Underlying Label")
+        plt.xlabel("Underlying Class")
+        plt.ylabel("Prediction")
+        fig.savefig(os.path.join(output_path, "underlying.png"), bbox_inches='tight')
+        plt.close()
 
     def create_postprocessing_folder(self, classification, model_type):
         output_path = f"{self.path_root}/postprocessing/{classification}/{model_type}{self.model_name}"

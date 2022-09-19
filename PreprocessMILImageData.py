@@ -21,6 +21,26 @@ class PreprocessMILImageData(PreprocessImageData):
         image = self.create_patches_from_image(image)
         return image, label
 
+    def create_dataset_for_calculation(self):
+        files = os.listdir(self._buffer_folder)
+        files = self.sort_files(files)
+        files_full_path = [os.path.join(self._buffer_folder, file) for file in files]
+        file_labels = [int(file.split("_")[0]) for file in files]
+        self.calculation_file_list = [(file, label) for file, label in zip(files_full_path, file_labels)]
+        dataset = tf.data.Dataset.from_tensor_slices((files_full_path, file_labels))
+        if self.data_type == "train":
+            dataset_1 = dataset.take(2400)
+            train_dataset = dataset.skip(2400).take(27000)
+            dataset_2 = dataset.skip(27000).take(2400)
+            val_dataset = dataset_1.concatenate(dataset_2)
+            train_dataset = train_dataset.shuffle(int(len(files_full_path)*0.85))
+            train_dataset = train_dataset.map(self.parse_function)
+            train_dataset = train_dataset.map(self.augment_function)
+            val_dataset = val_dataset.map(self.parse_function)
+            return train_dataset, val_dataset
+        dataset = dataset.map(self.parse_function)
+        return dataset
+
     def create_patches_from_image(self, image, channels=1):
         # TODO: Invertier die Axen und streich die swap axis befehle danach raus
         x_dim = round(np.floor(self.image_size[0]/10))*10

@@ -25,9 +25,11 @@ class Postprocessing:
         cm = confusion_matrix(self.belonging_labels, self.prediction_results, labels=(0, 1))
         print(cm)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm,
-                                      display_labels=(0, 1))
-        fig, ax = plt.subplots(figsize=(10, 10))
-        disp.plot(ax=ax)
+                                      display_labels=(0, 1)
+                                      )
+        fig, ax = plt.subplots(figsize=(5, 5))
+        disp.plot(ax=ax, colorbar=False)
+        plt.tight_layout()
         plt.savefig(name)
 
     # def non_binary_confusion(self, threshold=0, name="results/non_binary_confusion_matrix.png"):
@@ -326,17 +328,18 @@ if __name__ == "__main__":
     from vgg16 import create_vgg_model
     from PreprocessData import PreprocessData
     from PreprocessImageData import PreprocessImageData
+    from PreprocessMILImageData import PreprocessMILImageData
     # model = create_vgg_model(input_shape=(2044, 2048, 3))
     # model.layers[1].summary()
     # model.summary()
     # for layer in model.layers:
     #     layer.trainable = True
-    model = k.models.load_model("/home/julius/dataspellprojects/oct-classifier/results/hyperparameter_study/supervised/models/acc_ave_pool_relu_norm_lay6_little_drop_little_l2_ave_pooling_little_n32_zeros_augment_noise")
+    model = k.models.load_model("results/hyperparameter_study/mil/models/ave_pool_selu_lay4_no_drop_little_l2_global_ave_pooling_n32_zeros_augment_no_noise_fft_denoise7_residual_mil_cfalse_nfalse_images_lfalse")
     #model.summary()
 
     #tf.keras.utils.plot_model(model, show_shapes=True, expand_nested=True)
     file_list = PreprocessData.load_file_list(test_or_train="test", angio_or_structure="images")
-    pid = PreprocessImageData(file_list, rgb=False, crop=300)
+    pid = PreprocessMILImageData(file_list, rgb=False, crop=False)
     pid._buffer_folder = "tests/test"
     pid.preprocess_data_and_save()
     ds = pid.create_dataset_for_calculation()

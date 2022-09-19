@@ -16,11 +16,20 @@ class MilPooling:
         if mil_pooling_type == "weighted":
             self.conduct_pooling = self.weighted_average
             self.get_attention_weights = self.instance_weights
+        if mil_pooling_type == "max_pooling":
+            self.conduct_pooling = self.max_pooling
+
 
     # TODO: Make Dataset Output its elements in right order
 
     def conduct_pooling(self):
         pass
+
+    def max_pooling(self):
+        self.instance_prediction.sort()
+        #bag_predictions = np.max(self.instance_prediction, axis=1)
+        bag_predictions = np.mean(self.instance_prediction[:, -2:], axis=1)
+        return bag_predictions
 
     def weighted_average(self):
         bag_predictions = np.sum(self.instance_prediction, axis=1)

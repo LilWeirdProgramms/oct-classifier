@@ -28,9 +28,9 @@ class PreprocessData:
         self.calculation_file_list = [(file, label) for file, label in zip(files_full_path, file_labels)]
         dataset = tf.data.Dataset.from_tensor_slices((files_full_path, file_labels))
         if self.data_type == "train":
-            dataset_1 = dataset.take(int(len(files_full_path) * 0.075))
-            train_dataset = dataset.skip(int(len(files_full_path) * 0.075)).take(int(len(files_full_path) * 0.85))
-            dataset_2 = dataset.skip(int(len(files_full_path) * 0.925)).take(int(len(files_full_path) * 0.075))
+            dataset_1 = dataset.take(24)
+            train_dataset = dataset.skip(24).take(270)
+            dataset_2 = dataset.skip(270).take(24)
             val_dataset = dataset_1.concatenate(dataset_2)
             train_dataset = train_dataset.shuffle(int(len(files_full_path)*0.85))
             train_dataset = train_dataset.map(self.parse_function)

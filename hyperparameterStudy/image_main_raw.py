@@ -39,17 +39,17 @@ import Callbacks
 
 #  TODO: Create Factory
 hyperparameter_list = Hyperparameter(
-    downsample=["max_pool", "ave_pool"],  # , "stride"
-    activation=["selu"],  # , "relu_norm", "relu_norm",
+    downsample=["ave_pool"],  # , "stride"
+    activation=["relu_norm"],  # , "relu_norm", "relu_norm",
     conv_layer=["lay2"],  # "lay4",
     dropout=["lot_drop"],  # "no_drop", , "lot_drop", little_drop
-    regularizer=["little_l2"],  # "l2",
+    regularizer=["l2"],  # "l2",
     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
     init=["same"],  # , "same"
     augment=["afalse"],  # "augment", "augment_strong",
     noise=["noise"],  # "nfalse"
-    repetition=["all4_fullpca_5"],
+    repetition=["final"],
     residual=["residual"], # "residual",
     mil=["mil"],
     crop=["cfalse"],  #cfalse
@@ -67,7 +67,7 @@ class ImageMain:
                             filemode="w")
         logging.info("BEGINNING HYPERPARAMTER STUDY")
         mixed_precision.set_global_policy('mixed_float16')
-        self.model_folder = "results/hyperparameter_study/mil/models"
+        self.model_folder = "results/hyperparameter_study/mil/bkp_models"
 
         # TODO:  Idea : Reverse PCA before training?
 
@@ -218,7 +218,7 @@ class ImageMain:
         visualize_file_list = PreprocessMILImageData.load_file_list("test", angio_or_structure="images")
         visualize_file_list = sorted(visualize_file_list, key=lambda file: (int(file[1]),
                                                                             int(file[0].split("_")[-1][:-4])))
-        del_from_pred = ["_15780", "_20472"]
+        del_from_pred = ["_15780", "_20472", "_187", "_1082", "_1252", "32730"]
         new_files = []
         for file, label in visualize_file_list:
             if not any([delete_id in file for delete_id in del_from_pred]):
@@ -271,4 +271,4 @@ if __name__ == "__main__":
     os.chdir("../")
     keras.backend.clear_session()
     run_image = ImageMain()
-    run_image.run_all()
+    run_image.eval_all()

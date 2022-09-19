@@ -48,11 +48,33 @@ class HyperPostprocessor(BasePostprocessor):
     def model_postprocessing(self, prediction, model, ident, qualify=True, heat=True):
         save_at = self.sort_prediction_into_folder(ident, qualify=qualify, prediction=prediction)
         self.plot_roc(save_at, prediction)
-        # self.calc_accuracy(instance_predictions, bag_predictions, save_at)
-        if heat:
-            self.plot_heatmaps(model, save_at)
+        self.calc_accuracy(prediction, save_at)
+        #if heat:
+        #    self.plot_heatmaps(model, save_at)
         self.plot_history(save_at)
         self.save_prediction(prediction, self.test_file_list, save_at)
+        self.plot_real_distribution(prediction, save_at)
+
+    def calc_accuracy(self, prediction, output_to):
+        from sklearn import metrics
+
+        tpr, fpr, threshold = metrics.roc_curve([label for path, label in self.test_file_list], prediction)
+        gmean = np.sqrt(tpr * (1 - fpr))
+        index = np.argmax(gmean)
+        best_threshold = threshold[index]
+
+        score = 0
+        only_a_bit_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "19077", "28477", "1252", "1082"]
+        for predicted, truth in zip(prediction, self.test_file_list):
+            if any([x in truth[0] for x in only_a_bit_diabetic]):
+                score += predicted < best_threshold
+            else:
+                score += (predicted > best_threshold and truth[1] == 1.) or (predicted < best_threshold and truth[1] == 0.)
+        bag_accuracy = score / prediction.size
+        with open(os.path.join(output_to, "test_accuracy.txt"), "w") as f:
+            f.write(f"Accuracy: {bag_accuracy}")
+        return bag_accuracy
+
 
 
 if __name__ == "__main__":

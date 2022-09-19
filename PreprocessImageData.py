@@ -36,6 +36,7 @@ class PreprocessImageData(PreprocessData):
         if self.crop:
             image = image[self.crop:-self.crop, self.crop:-self.crop]
         image = self.remove_periodic_noise(image, fft_filter=True)
+        #image = image[::4, ::4]
         image = tf.image.per_image_standardization(image).numpy()
         if self.channels == 3:
             image = (image - image.min()) / (image.max()-image.min()) * 255

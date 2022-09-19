@@ -17,13 +17,14 @@ import copy
 
 class MilPostprocessor(BasePostprocessor):
 
-    def __init__(self, model_name, dataset, file_list, crop):
+    def __init__(self, model_name, dataset, file_list, crop, threshold=None):
         super().__init__(model_name, "results/hyperparameter_study/mil", file_list)
         # TODO: confirm file list has the same order as test_ds
         self.crop = crop
         self.test_ds = dataset  # Dataset needs to be sorted such that the first 100 elements are the elements of the first bag
         self.mil_pooling_model_name = "mil_pooling_" + model_name
         self.pooling_algo = None
+        self.threshold = threshold
 
     def mil_postprocessing(self):
         #for model_ident in ["acc_", "loss_"]:
@@ -35,8 +36,8 @@ class MilPostprocessor(BasePostprocessor):
         prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
 
         self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
-                                                   mil_pooling_type="weighted")  # TODO
-        bag_prediction = self.pooling_algo.conduct_pooling()
+                                                   mil_pooling_type="max_pooling")  # TODO
+        bag_prediction = self.pooling_algo.conduct_pooling() - self.threshold
         self.model_postprocessing(prediction, bag_prediction, model_ident)
 
     def mil_raw_postprocessing(self):
@@ -53,7 +54,21 @@ class MilPostprocessor(BasePostprocessor):
             self.plot_roc(save_at, bag_prediction)
             self.plot_raw(prediction, bag_prediction, os.path.join(save_at, "grad_cam"))
             self.plot_history(save_at)
+            #self.plot_mil_auc(save_at)
 
+    def plot_instances(self, path):
+        new_path = os.path.join(path, "instances")
+        if not os.path.exists(new_path):
+            os.mkdir(new_path)
+        prediction = self.create_prediction(self.model)
+        for elem, prediction, i in zip(self.test_ds, prediction, range(len(self.test_file_list) * 100)):
+            fig, ax = plt.subplots(1, 1, figsize=(3, 3))
+            ax.imshow(elem[0], "gray")
+            ax.axis(False)
+            title_pred = np.round(prediction[0], 4)
+            ax.set_title(f"{title_pred:.4f}")
+            fig.savefig(os.path.join(new_path, os.path.basename(self.test_file_list[int(i/100)][0])[:-4] + f"_{i % 100}.png"), bbox_inches='tight')
+            plt.close()
 
     def model_postprocessing(self, instance_predictions, bag_predictions, ident, qualify=True):
         """
@@ -67,10 +82,20 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
         :return:
         """
         save_at = self.sort_prediction_into_folder(ident, qualify=qualify, prediction=bag_predictions)
+        self.plot_instances(save_at)
         self.calc_accuracy(instance_predictions, bag_predictions, save_at)
         self.plot_roc(save_at, bag_predictions)
         self.plot_mil_images(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
+        #self.plot_raw(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
         self.plot_history(save_at)
+        self.plot_mil_auc(save_at)
+        self.plot_mil_real_distribution(instance_predictions, save_at)
+
+    def plot_mil_real_distribution(self, instance_predictions, save_at):
+        pooling_algo = mil_pooling.MilPooling(instance_predictions, "mil_pooling_" + self.model_name,
+                                                   mil_pooling_type="max_pooling")  # TODO
+        bag_predictions = pooling_algo.conduct_pooling()
+        self.plot_real_distribution(bag_predictions, save_at)
 
     def plot_mil_images(self, instance_predictions, bag_predictions, output_path):
         instance_predictions = instance_predictions.reshape((-1, 100))  # Reshape to (sample_no, 100)
@@ -80,10 +105,11 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
         upper_bound = instance_predictions.max()
         crop = 0
         if self.crop:
-            crop = 60
+            crop = 60 # 60
+        image_size = 204  # 204
         for bag_prediction, prediction, bag_heatmaps, bag_images, file in sorted(zip(bag_predictions, instance_predictions,
-                                                           np.swapaxes(all_heatmap_plots.reshape((-1, 10, 10, 204-crop, 204-crop)), 1, 2),
-                                                           np.swapaxes(all_images.reshape((-1, 10, 10, 204-crop, 204-crop)), 1, 2),
+                                                           np.swapaxes(all_heatmap_plots.reshape((-1, 10, 10, image_size-crop, image_size-crop)), 1, 2),
+                                                           np.swapaxes(all_images.reshape((-1, 10, 10, image_size-crop, image_size-crop)), 1, 2),
                                                            self.test_file_list),
                                                        key=lambda test_file: test_file[0]):
             #attention_weights = self.get_attention_weights(prediction)
@@ -96,6 +122,7 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
                     heat_im = ax[i, j].imshow(scaled_heatmap, cmap="hot", alpha=0.4)
                     ax[i, j].axis(False)
                     heat_im.set_clim(0, upper_bound)
+                    #heat_im.set_clim(0, np.maximum(prediction.max(), 0.001))
             fig.suptitle(f"Image Type {file[1]} with Prediction: {bag_prediction}", fontsize=16)
             plt.subplots_adjust(wspace=0, hspace=0)
             fig.savefig(os.path.join(output_path, os.path.basename(file[0])), bbox_inches='tight')
@@ -125,12 +152,13 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
             fig, ax = plt.subplots(1, 1, figsize=(18, 18))
             im = plt.imread(file[0])
             ax.imshow(im, "gray")
-            heat_im = ax.imshow(sk_tr.resize(prediction, im.shape), "hot", alpha=0.4)
+            heat_im = ax.imshow(sk_tr.resize(prediction, im.shape, order=0), "hot", alpha=0.4)
             heat_im.set_clim(0, up_lim)
+            #heat_im.set_clim(0, np.maximum(prediction.max(), 0.001))
             ax.axis(False)
             fig.suptitle(f"Image Type {file[1]} with Prediction: {bag_prediction}", fontsize=16)
             plt.subplots_adjust(wspace=0, hspace=0)
-            fig.savefig(os.path.join(output_path, os.path.basename(file[0])), bbox_inches='tight')
+            fig.savefig(os.path.join(os.path.join(output_path, ""), os.path.basename(file[0])), bbox_inches='tight')
             plt.close()
             # mil_vis = MilVisualizer(background_image_tuple=file, instance_results=prediction
             #                         , bag_result=bag_prediction
@@ -153,16 +181,32 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
 
     def calc_accuracy(self, instance_predictions, bag_predictions, output_to):
         score = 0
+        only_a_bit_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "1252", "1082"]
         for predicted, truth in zip(instance_predictions.flatten(), self.test_ds):
             score += (predicted > 0 and truth[1].numpy() == 1.) or (predicted < 0 and truth[1].numpy() == 0.)
         instance_accuracy = score / instance_predictions.size
         score = 0
         for predicted, truth in zip(bag_predictions, self.test_file_list):
-            score += (predicted > 0 and truth[1] == 1.) or (predicted < 0 and truth[1] == 0.)
+            if any([x in truth[0] for x in only_a_bit_diabetic]):
+                score += predicted < 0
+            else:
+                score += (predicted > 0 and truth[1] == 1.) or (predicted < 0 and truth[1] == 0.)
         bag_accuracy = score / bag_predictions.size
         with open(os.path.join(output_to, "test_accuracy.txt"), "w") as f:
             f.write(f"Instance Accuracy: {instance_accuracy}\nBag Accuracy: {bag_accuracy}")
         return instance_accuracy, bag_accuracy
+
+    def plot_mil_auc(self, output_path):
+        sns.set_theme()
+        history_df = pd.read_csv(self.history_path)
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        ax.plot(history_df["epoch"], history_df["val_mil_metric"])
+        ax.legend(["Validation Bag AUC"])
+        plt.xlabel("Epoch")
+        plt.ylabel("AUC")
+        plt.tight_layout()
+        fig.savefig(os.path.join(output_path, "mil_auc"))
+        plt.close()
 
 if __name__ == "__main__":
     os.chdir("../")

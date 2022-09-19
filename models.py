@@ -129,6 +129,26 @@ def classiRaw3Dmnist(input_size, normalizer: Normalization = None, reconstructio
 
     return model
 
+# def mil_metric(y_true, y_pred):
+#     prediction = tf.reshape(y_pred, (-1, 3))
+#     pooled_predicition = tf.reduce_max(prediction, axis=1)
+#     label = tf.reshape(y_true, (-1, 3))
+#     pooled_label = tf.reduce_mean(label, axis=1)
+#     #m = tf.keras.metrics.AUC()
+#     #m.update_state(pooled_predicition, pooled_label)
+#     return m.result()
+
+class MilMetric(tf.keras.metrics.AUC):
+    def __init__(self, name=None, **kwargs):
+        super(MilMetric, self).__init__(name="mil_metric", from_logits=True)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        prediction = tf.reshape(y_pred, (-1, 2))
+        pooled_predicition = tf.reduce_max(prediction, axis=1)
+        label = tf.reshape(y_true, (-1, 2))
+        pooled_label = tf.reduce_mean(label, axis=1)
+        super().update_state(pooled_label, pooled_predicition, sample_weight)
+
 def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconstruction=False):
     # dataformat: samples/A-scan x fast-axis x slow-axis x channels (unused)
 
@@ -147,7 +167,7 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
     # pinp = tf.keras.layers.Reshape((input_size[0], input_size[1], input_size[2], input_size[3]))(pinp)
     #pinp = tf.keras.layers.GaussianNoise(0.1)(conv)
     #conv = pinp
-    conv = keras.layers.GaussianNoise(0.005)(conv)
+    conv = keras.layers.GaussianNoise(0.02)(conv)
     l2_value = 0.01
     conv = AlphaDropout(0.05)(conv)
     conv = Conv3D(16, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
@@ -158,11 +178,11 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
                   bias_initializer=binit
                   , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
                   )(conv)
-    # conv = AlphaDropout(0.2)(conv)
     conv = MaxPooling3D((2, 2, 2))(conv)
+    conv = AlphaDropout(0.05)(conv)
     conv = Conv3D(32, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
                   bias_initializer=binit
-                 , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
+                 , kernel_regularizer=keras.regularizers.l1_l2(l2=l2_value, l1=1e-6)
                   )(conv)
     # conv = Conv3D(32, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
     #               bias_initializer=binit
@@ -172,8 +192,21 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
     conv = MaxPooling3D((2, 2, 2))(conv)
     conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
                   bias_initializer=binit
-                  , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
+                  , kernel_regularizer=keras.regularizers.l1_l2(l2=l2_value, l1=0)
                   )(conv)
+    # conv = MaxPooling3D((2, 2, 2))(conv)
+    # conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l1_l2(l2=l2_value, l1=0)
+    #               )(conv)
+    # conv = Conv3D(128, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l1_l2(l2=l2_value, l1=0)
+    #               )(conv)
+    # conv = Conv3D(256, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
+    #               bias_initializer=binit
+    #               , kernel_regularizer=keras.regularizers.l1_l2(l2=l2_value, l1=0)
+    #               )(conv)
     # conv = Conv3D(64, 3, strides=1, activation="selu", padding="same", kernel_initializer=init,
     #               bias_initializer=binit
     #               , kernel_regularizer=keras.regularizers.l2(l2=l2_value)
@@ -199,10 +232,10 @@ def classiRaw3Dmnist_small(input_size, normalizer: Normalization = None, reconst
 
     # model
     model = Model(inputs=inp, outputs=outp)
-    model.compile(optimizer=Adam(learning_rate=6e-4), loss=keras.losses.BinaryCrossentropy(from_logits=True,
-                                                                                           #label_smoothing=0.05
+    model.compile(optimizer=Adam(learning_rate=6e-5), loss=keras.losses.BinaryCrossentropy(from_logits=True,
+                                                                                           label_smoothing=0.01
                                                                                            ),
-                  metrics=["accuracy"]
+                  metrics=["accuracy", MilMetric()]
                   # ,metrics=[keras.metrics.SparseCategoricalCrossentropy()]
                   )
     # model.compile(optimizer=Adam(learning_rate=1e-4), loss = tf.keras.losses.MeanAbsoluteError(),
