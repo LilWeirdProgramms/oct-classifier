@@ -85,7 +85,9 @@ class ImageModel:
         model = k.Model(inp, out)
         model.summary(print_fn=output_to)
         if self.label_smoothing:
-            model.compile(loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.02),
+            model.compile(
+                #loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.02),
+                loss=MilLoss(from_logits=True, label_smoothing=0.02),
                           optimizer=k.optimizers.Adam(learning_rate=1e-4),
                           metrics=["accuracy"
                                    , TrueNegatives(from_logits=True)
@@ -197,6 +199,19 @@ class MilMetric(tf.keras.metrics.AUC):
         pooled_label = tf.cast(tf.reduce_mean(label, axis=1), tf.int32)
         #print(pooled_label.numpy())
         super().update_state(pooled_label, tf.nn.sigmoid(pooled_predicition), sample_weight)
+
+
+class MilLoss(tf.keras.losses.BinaryCrossentropy):
+    def __init__(self, from_logits, label_smoothing, name="custom_binary_crossentropy"):
+        super().__init__(name=name, from_logits=from_logits, label_smoothing=label_smoothing)
+
+    def call(self, y_true, y_pred):
+        prediction = tf.reshape(y_pred, (-1, 100))
+        pooled_predicition = tf.reduce_max(prediction, axis=1)
+        label = tf.reshape(y_true, (-1, 100))
+        pooled_label = tf.cast(tf.reduce_mean(label, axis=1), tf.int32)
+        return super().call(pooled_label, pooled_predicition)
+
 
 # class MyCustomMetric(tf.keras.metrics.Metrics):
 #

@@ -88,7 +88,8 @@ class PreprocessData:
             label_list.append(elem[1].numpy())
         a = sum(label_list)
         b = len(label_list) - sum(label_list)
-        class_weights = {0: (1 / b) * (a + b) / 2, 1: (1 / a) * (a + b) / 2}
+        # Class 0 is by default twice as important as class 1 to favor precision over accuracy
+        class_weights = {0: (1 / b) * (a + b) / 1, 1: (1 / a) * (a + b) / 2}
         logging.info(f"Got {len(label_list)} Training Samples of which {a} are diabetic and {b} are healthy")
         logging.info(f"Class Weights: {class_weights}")
         return class_weights

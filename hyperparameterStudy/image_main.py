@@ -10,7 +10,7 @@ from Hyperparameter import Hyperparameter
 from PreprocessMultiChannelMILImageData import PreprocessMultiChannelMILImageData
 from PreprocessMILImageData import PreprocessMILImageData
 from mil_postprocessing import MilPostprocessor
-from ImageModelBuilder import ImageModel
+from ImageModelBuilder import ImageModel, MilLoss
 from PreprocessData import PreprocessData
 from PreprocessRawData import PreprocessRawData
 from RawModelBuilder import RawModel
@@ -62,12 +62,12 @@ import vgg16_main
 hyperparameter_list = Hyperparameter(
     downsample=["ave_pool"],  # , "stride"
     activation=["selu"],  # , "relu_norm", "relu_norm",
-    conv_layer=["lay3"],  # "lay4",
+    conv_layer=["lay4"],  # "lay4",
     dropout=["lot_drop"],  # "no_drop", , "lot_drop"
     regularizer=["l2"],  # "l2",
     reduction=["global_ave_pooling"],  # "flatten", "global_ave_pooling", "ave_pooling_little",
     first_layer=["n32"], # "n64"
-    init=["zeros"],  # , "same"
+    init=["same"],  # , "same"
     augment=["augment"],  # "augment", "augment_strong",
     noise=["noise"],  # "no_noise"
     repetition=["final"],
@@ -176,7 +176,7 @@ class ImageMain:
             pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
             # TODO:
-        pid.preprocess_data_and_save()
+        #pid.preprocess_data_and_save()
         if data_type == "train":
             self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
             self.class_weights = PreprocessData.calc_weights(self.ds_train)  # TODO factory
@@ -267,7 +267,8 @@ class ImageMain:
         labels = [int(x / 24) for x in range(48)]
 
         full_loss_model_path = os.path.join("results/hyperparameter_study/mil/models", self.model_name)
-        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric})
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric, "MilLoss":MilLoss},
+                                    compile=False)
 
         prediction = model.predict(self.ds_val.batch(1), verbose=1)
         prediction = prediction.reshape((-1, 10, 10))
@@ -284,10 +285,7 @@ class ImageMain:
         val_file_list = self.file_list[:24] + self.file_list[-24:]
         #hp = MilPostprocessor(self.model_name, self.ds_val, val_file_list, crop=self.crop, threshold=best_threshold)
         #hp.mil_postprocessing()
-
         print(best_threshold)
-
-
 
 
     def create_plot(self, image, label, k, bonus):

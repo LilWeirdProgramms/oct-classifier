@@ -8,6 +8,7 @@ import numpy as np
 import Visualization
 from sklearn import metrics
 import models
+from ImageModelBuilder import MilLoss
 
 class BasePostprocessor:
 
@@ -84,7 +85,8 @@ class BasePostprocessor:
 
     def load_model(self, model_type):
         full_loss_model_path = os.path.join(self.best_models_path, model_type + self.model_name)
-        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric})
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric, "MilLoss":MilLoss},
+                                    compile=False)
         return model
 
     # TODO: Implement for MIL
@@ -114,6 +116,7 @@ class BasePostprocessor:
         2x very diabetic
         :return:
         """
+        # 13 14 28 15 26 27
         bag_predictions = bag_predictions.reshape((bag_predictions.size, ))
         only_a_bit_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "1252", "1082"]
         result_list = list(zip(bag_predictions, self.test_file_list))

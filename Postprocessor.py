@@ -139,45 +139,45 @@ class Postprocessing:
         heatmap = heatmap.numpy().reshape(last_conv_layer.shape[1:3].as_list())
         return heatmap, class_out
 
-    def grad_cam(self, input_data, layer_name):
-        """
-        Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
-        :param input_shape:
-        :param input_data:
-        :param layer_name:
-        :return:
-        """
-        #self.postprocessing_model = k.applications.vgg16.VGG16()
-        last_conv_layer = self.postprocessing_model.get_layer(layer_name)
-        last_conv_layer_model = k.Model(inputs=self.postprocessing_model.input, outputs=last_conv_layer.output)
-
-        # This is just weird I don't understand what I did here either (don't try to change it)
-        #classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
-        classifier_layer_names = []
-        for layer in self.postprocessing_model.layers[::-1]:
-            if layer.name == last_conv_layer.name:
-                break
-            classifier_layer_names.append(layer.name)
-
-        classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
-        x = classifier_input
-        for layer_name in classifier_layer_names[::-1]:
-            x = self.postprocessing_model.get_layer(layer_name)(x)
-        classifier_model = k.Model(classifier_input, x)
-
-        with tf.GradientTape() as tape:
-            last_conv_layer_output = last_conv_layer_model(input_data)
-            tape.watch(last_conv_layer_output)
-
-            # 8. Get the class predictions and the class channel using the class index
-            preds = classifier_model(last_conv_layer_output)
-            grads = tape.gradient(preds, last_conv_layer_output)
-            pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
-
-            # 9. Using tape, Get the gradient for the predicted class wrt the output feature map of last conv layer
-            heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
-            heatmap = heatmap.numpy().reshape(last_conv_layer_output.shape[1:3].as_list())
-        return heatmap, preds
+    # def grad_cam(self, input_data, layer_name):
+    #     """
+    #     Calculate Gradient of Class out by last layer out. Average over all kernel. Greyscale.
+    #     :param input_shape:
+    #     :param input_data:
+    #     :param layer_name:
+    #     :return:
+    #     """
+    #     #self.postprocessing_model = k.applications.vgg16.VGG16()
+    #     last_conv_layer = self.postprocessing_model.get_layer(layer_name)
+    #     last_conv_layer_model = k.Model(inputs=self.postprocessing_model.input, outputs=last_conv_layer.output)
+    #
+    #     # This is just weird I don't understand what I did here either (don't try to change it)
+    #     #classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+    #     classifier_layer_names = []
+    #     for layer in self.postprocessing_model.layers[::-1]:
+    #         if layer.name == last_conv_layer.name:
+    #             break
+    #         classifier_layer_names.append(layer.name)
+    #
+    #     classifier_input = k.Input(shape=last_conv_layer.output.shape[1:])
+    #     x = classifier_input
+    #     for layer_name in classifier_layer_names[::-1]:
+    #         x = self.postprocessing_model.get_layer(layer_name)(x)
+    #     classifier_model = k.Model(classifier_input, x)
+    #
+    #     with tf.GradientTape() as tape:
+    #         last_conv_layer_output = last_conv_layer_model(input_data)
+    #         tape.watch(last_conv_layer_output)
+    #
+    #         # 8. Get the class predictions and the class channel using the class index
+    #         preds = classifier_model(last_conv_layer_output)
+    #         grads = tape.gradient(preds, last_conv_layer_output)
+    #         pooled_grads = k.backend.mean(grads, axis=(0, 1, 2))
+    #
+    #         # 9. Using tape, Get the gradient for the predicted class wrt the output feature map of last conv layer
+    #         heatmap = tf.reduce_mean(tf.multiply(pooled_grads, last_conv_layer_output), axis=-1)
+    #         heatmap = heatmap.numpy().reshape(last_conv_layer_output.shape[1:3].as_list())
+    #     return heatmap, preds
 
     # def grad_cam(self, input_data, layer_name):
     #     """

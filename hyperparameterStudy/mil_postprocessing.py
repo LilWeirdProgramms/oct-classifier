@@ -35,6 +35,8 @@ class MilPostprocessor(BasePostprocessor):
         prediction = prediction.reshape((-1, 10, 10))
         prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
 
+        self.plot_instance_predictions(prediction)
+
         self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
                                                    mil_pooling_type="max_pooling")  # TODO
         bag_prediction = self.pooling_algo.conduct_pooling() - self.threshold
@@ -82,7 +84,7 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
         :return:
         """
         save_at = self.sort_prediction_into_folder(ident, qualify=qualify, prediction=bag_predictions)
-        self.plot_instances(save_at)
+        #self.plot_instances(save_at)
         self.calc_accuracy(instance_predictions, bag_predictions, save_at)
         self.plot_roc(save_at, bag_predictions)
         self.plot_mil_images(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
@@ -90,6 +92,25 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
         self.plot_history(save_at)
         self.plot_mil_auc(save_at)
         self.plot_mil_real_distribution(instance_predictions, save_at)
+
+    def plot_instance_predictions(self, instance_prediction):
+        # 13 14 28 15 26 27
+        import pandas as pd
+        df = pd.DataFrame(instance_prediction)
+        sns.set_theme(style="whitegrid")
+        fig = plt.figure(figsize=(20, 5))
+        df = df.T
+        df.pop(34)
+        df.pop(12)
+        df.pop(11)
+        df.pop(10)
+        df.pop(9)
+        ax = sns.boxplot(data=df)
+        ax.set_title("Instance Predictions Sorted by Bag:")
+        ax.set(xlabel='DR Status', ylabel='Instance Predictions')
+        ax.set_xticklabels([str(label) for path, label in self.test_file_list][:-5])
+        fig.savefig("predictions.png")
+
 
     def plot_mil_real_distribution(self, instance_predictions, save_at):
         pooling_algo = mil_pooling.MilPooling(instance_predictions, "mil_pooling_" + self.model_name,
