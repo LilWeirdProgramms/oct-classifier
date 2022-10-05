@@ -85,7 +85,9 @@ class BasePostprocessor:
 
     def load_model(self, model_type):
         full_loss_model_path = os.path.join(self.best_models_path, model_type + self.model_name)
-        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric, "MilLoss":MilLoss},
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric
+            #, "MilLoss":MilLoss
+                                                                          },
                                     compile=False)
         return model
 
@@ -138,8 +140,8 @@ class BasePostprocessor:
         return evaluated_folder
 
     def plot_real_distribution(self, prediction, output_path):
-        no_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "19077", "28477", "1252", "1082"]
-        only_a_bit_diabetic = ["29122", "28832", "28810", "187", "32730"]
+        no_diabetic = ["2666", "5577", "6338", "18832", "27719", "28065", "19077"]
+        only_a_bit_diabetic = ["29122", "28832", "28810", "28477", "28133"]
         real_class = []
         for truth in self.test_file_list:
             if any([x in truth[0] for x in no_diabetic]):

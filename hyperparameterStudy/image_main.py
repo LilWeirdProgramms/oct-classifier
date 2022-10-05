@@ -70,7 +70,7 @@ hyperparameter_list = Hyperparameter(
     init=["same"],  # , "same"
     augment=["augment"],  # "augment", "augment_strong",
     noise=["noise"],  # "no_noise"
-    repetition=["final"],
+    repetition=["paper4"],
     residual=["residual"], # "residual",
     mil=["mil"],
     crop=["cfalse"],  #cfalse
@@ -78,7 +78,6 @@ hyperparameter_list = Hyperparameter(
     image_type=["images"],  #
     label_smoothing=["label_smoothing"]
 )
-
 
 class ImageMain:
 
@@ -176,7 +175,7 @@ class ImageMain:
             pid = PreprocessMILImageData(file_list, rgb=False, crop=self.crop, data_type=data_type,
                                          normalize=self.normalize, augment=self.augment)
             # TODO:
-        #pid.preprocess_data_and_save()
+        pid.preprocess_data_and_save()
         if data_type == "train":
             self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
             self.class_weights = PreprocessData.calc_weights(self.ds_train)  # TODO factory
@@ -203,7 +202,7 @@ class ImageMain:
         k.utils.plot_model(model, show_shapes=True, expand_nested=True)
         model.fit(self.ds_train.batch(100),
                   validation_data=self.ds_val.batch(200),
-                  epochs=30,
+                  epochs=100,
                   callbacks=Callbacks.mil_pooling_callback(self.model_name),  #TODO
                   class_weight=self.class_weights)
 
@@ -264,12 +263,14 @@ class ImageMain:
                                      normalize=self.normalize, augment=self.augment)
         self.ds_train, self.ds_val = pid.create_dataset_for_calculation()
 
+        # TODO:
         labels = [int(x / 24) for x in range(48)]
 
         full_loss_model_path = os.path.join("results/hyperparameter_study/mil/models", self.model_name)
-        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric, "MilLoss":MilLoss},
+        model = k.models.load_model(full_loss_model_path, custom_objects={'MilMetric':models.MilMetric,
+                                                                          #'MilLoss':MilLoss
+                                                                          },
                                     compile=False)
-
         prediction = model.predict(self.ds_val.batch(1), verbose=1)
         prediction = prediction.reshape((-1, 10, 10))
         prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
@@ -302,4 +303,4 @@ if __name__ == "__main__":
     import supervised_main
     os.chdir("../")
     run_image = ImageMain()
-    run_image.eval_all()
+    run_image.run_all()

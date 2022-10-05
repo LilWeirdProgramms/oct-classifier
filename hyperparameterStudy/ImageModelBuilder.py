@@ -26,6 +26,7 @@ class ImageModel:
     def model(self, output_to=None, input_shape=(1444, 1448, 1)):
         init, binit = self.initilizer()
         inp = k.layers.Input(shape=input_shape)
+        out = k.layers.GaussianNoise(0.01)(inp)
         out = k.layers.Conv2D(self.first_layer_nodes,
                                   3,
                                   strides=self.stride,
@@ -34,7 +35,7 @@ class ImageModel:
                                   kernel_initializer=init,
                                   bias_initializer=binit,
                                   kernel_regularizer=self.regularizer
-                                  )(inp)
+                                  )(out)
         if self.firstdropout:
             out = k.layers.Dropout(0.05)(out)
         for i in range(1, self.num_layers + 1):
@@ -62,6 +63,8 @@ class ImageModel:
             if self.batchnorm:
                 out = k.layers.BatchNormalization()(out)
             if self.residual:
+                if self.firstdropout:
+                    out = k.layers.Dropout(0.01)(out)
                 out = k.layers.Add()([out, out_short])
                 out = k.layers.Conv2D(self.first_layer_nodes * (additional_nodes+1),
                                       3,
@@ -86,8 +89,8 @@ class ImageModel:
         model.summary(print_fn=output_to)
         if self.label_smoothing:
             model.compile(
-                #loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.02),
-                loss=MilLoss(from_logits=True, label_smoothing=0.02),
+            loss=k.losses.BinaryCrossentropy(from_logits=True, label_smoothing=0.02),
+                #loss=MilLoss(from_logits=True, label_smoothing=0.02),
                           optimizer=k.optimizers.Adam(learning_rate=1e-4),
                           metrics=["accuracy"
                                    , TrueNegatives(from_logits=True)

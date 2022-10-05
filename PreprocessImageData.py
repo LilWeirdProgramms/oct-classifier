@@ -35,7 +35,7 @@ class PreprocessImageData(PreprocessData):
     def _preprocess_image(self, image):
         if self.crop:
             image = image[self.crop:-self.crop, self.crop:-self.crop]
-        image = self.remove_periodic_noise(image, fft_filter=True)
+        # image = self.remove_periodic_noise(image, fft_filter=True)
         #image = image[::4, ::4]
         image = tf.image.per_image_standardization(image).numpy()
         if self.channels == 3:
@@ -102,7 +102,7 @@ class PreprocessImageData(PreprocessData):
         if self.augment:
             image = tf.image.random_flip_left_right(image)
             image = tf.image.random_flip_up_down(image)
-            image = tf.image.random_brightness(image, max_delta=0.1)
+            image = tf.image.random_brightness(image, max_delta=0.15)
             image = tf.image.random_contrast(image, 0.8, 1.1)
         # image = tf.image.per_image_standardization(image)
         return image, label

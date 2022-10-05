@@ -34,9 +34,6 @@ class MilPostprocessor(BasePostprocessor):
         prediction = self.create_prediction(self.model)
         prediction = prediction.reshape((-1, 10, 10))
         prediction = np.swapaxes(prediction, 1, 2).reshape((-1, 100))  # n predictions in the shape (n, 100)
-
-        self.plot_instance_predictions(prediction)
-
         self.pooling_algo = mil_pooling.MilPooling(prediction, self.mil_pooling_model_name,
                                                    mil_pooling_type="max_pooling")  # TODO
         bag_prediction = self.pooling_algo.conduct_pooling() - self.threshold
@@ -84,32 +81,46 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
         :return:
         """
         save_at = self.sort_prediction_into_folder(ident, qualify=qualify, prediction=bag_predictions)
+        self.plot_instance_predictions(instance_predictions, save_at)
         #self.plot_instances(save_at)
         self.calc_accuracy(instance_predictions, bag_predictions, save_at)
         self.plot_roc(save_at, bag_predictions)
-        self.plot_mil_images(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
+        #self.plot_mil_images(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
         #self.plot_raw(instance_predictions, bag_predictions, os.path.join(save_at, "grad_cam"))
         self.plot_history(save_at)
         self.plot_mil_auc(save_at)
         self.plot_mil_real_distribution(instance_predictions, save_at)
 
-    def plot_instance_predictions(self, instance_prediction):
+    def plot_instance_predictions(self, instance_prediction, save_at):
         # 13 14 28 15 26 27
         import pandas as pd
         df = pd.DataFrame(instance_prediction)
         sns.set_theme(style="whitegrid")
         fig = plt.figure(figsize=(20, 5))
         df = df.T
-        df.pop(34)
-        df.pop(12)
-        df.pop(11)
-        df.pop(10)
-        df.pop(9)
-        ax = sns.boxplot(data=df)
+        tick_list, color_list = [], []
+        no_diabetic = ["5577", "6338", "18832", "27719", "28065", "19077"]
+        only_a_bit_diabetic = ["29122", "28832", "28810", "28477", "28133"]
+        for path, label in self.test_file_list:
+            if any([x in path for x in only_a_bit_diabetic]):
+                label = "Minor"
+                color_list.append("#FFAA60")
+            elif any([x in path for x in no_diabetic]):
+                label = "No"
+                color_list.append("#9090FF")
+            elif label == 1:
+                label = "Major"
+                color_list.append("#FF7070")
+            elif label == 0:
+                label = "Healthy"
+                color_list.append("#70FF70")
+            tick_list.append(label)
+        ax = sns.boxplot(data=df, palette=color_list)
         ax.set_title("Instance Predictions Sorted by Bag:")
         ax.set(xlabel='DR Status', ylabel='Instance Predictions')
-        ax.set_xticklabels([str(label) for path, label in self.test_file_list][:-5])
-        fig.savefig("predictions.png")
+        ax.set_xticklabels(tick_list)
+        plt.tight_layout()
+        fig.savefig(os.path.join(save_at, "predictions.png"))
 
 
     def plot_mil_real_distribution(self, instance_predictions, save_at):
@@ -202,7 +213,7 @@ prec_max_pool_relu_norm_lay4_little_drop_l2_global_ave_pooling_n32_zeros_afalse_
 
     def calc_accuracy(self, instance_predictions, bag_predictions, output_to):
         score = 0
-        only_a_bit_diabetic = ["2666", "5577", "6338", "28133", "18832", "27719", "28065", "1252", "1082"]
+        only_a_bit_diabetic = ["5577", "6338", "28133", "18832", "27719", "28065"]
         for predicted, truth in zip(instance_predictions.flatten(), self.test_ds):
             score += (predicted > 0 and truth[1].numpy() == 1.) or (predicted < 0 and truth[1].numpy() == 0.)
         instance_accuracy = score / instance_predictions.size

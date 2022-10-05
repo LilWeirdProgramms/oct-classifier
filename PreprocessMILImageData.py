@@ -33,7 +33,7 @@ class PreprocessMILImageData(PreprocessImageData):
             train_dataset = dataset.skip(2400).take(27000)
             dataset_2 = dataset.skip(27000).take(2400)
             val_dataset = dataset_1.concatenate(dataset_2)
-            # train_dataset = train_dataset.shuffle(int(len(files_full_path)*0.85))
+            train_dataset = train_dataset.shuffle(int(len(files_full_path)*0.85))
             train_dataset = train_dataset.map(self.parse_function)
             train_dataset = train_dataset.map(self.augment_function)
             val_dataset = val_dataset.map(self.parse_function)
