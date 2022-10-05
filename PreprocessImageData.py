@@ -4,7 +4,6 @@ import skimage.io as sk_io
 import skimage.filters as sk_fi
 import tensorflow as tf
 
-from hyperparameterStudy.image_dataset import ImageDataset
 from PreprocessData import PreprocessData
 from numpy.fft import fft, ifft
 
@@ -114,18 +113,18 @@ class PreprocessImageData(PreprocessData):
 
 
 
-if __name__ == "__main__":
-    import os
-
-    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-    import tensorflow as tf
-
-    from tensorflow.python.client import device_lib
-
-    print(device_lib.list_local_devices())
-    with tf.device("/cpu:0"):
-        file_list = ImageDataset.load_file_list("test")
-        pid = PreprocessImageData(file_list, rgb=True)
-        im, la = pid.preprocess_dataset(*file_list[0])
-        print(im.shape)
+# if __name__ == "__main__":
+#     import os
+#
+#     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+#     import tensorflow as tf
+#
+#     from tensorflow.python.client import device_lib
+#
+#     print(device_lib.list_local_devices())
+#     with tf.device("/cpu:0"):
+#         file_list = ImageDataset.load_file_list("test")
+#         pid = PreprocessImageData(file_list, rgb=True)
+#         im, la = pid.preprocess_dataset(*file_list[0])
+#         print(im.shape)
 

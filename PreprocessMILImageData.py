@@ -4,7 +4,6 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
 
-from hyperparameterStudy.image_dataset import ImageDataset
 from PreprocessImageData import PreprocessImageData
 
 
@@ -65,16 +64,16 @@ class PreprocessMILImageData(PreprocessImageData):
                                                int(file.split("_")[-1][:-4])))
 
 
-if __name__ == "__main__":
-    data_type = "test"
-    file_list = ImageDataset.load_file_list(data_type)
-    pid = PreprocessMILImageData(file_list, rgb=False, crop=False, data_type=data_type)
-    #pid.preprocess_data_and_save()
-    ds = pid.create_dataset_for_calculation()
-    import matplotlib.pyplot as plt
-    for image, file in zip(ds.take(300), pid.calculation_file_list):
-        print(file)
-        #plt.figure()
-        #plt.imshow(image[0], "Greys")
-        #plt.colorbar()
-        #plt.show()
+# if __name__ == "__main__":
+#     data_type = "test"
+#     file_list = ImageDataset.load_file_list(data_type)
+#     pid = PreprocessMILImageData(file_list, rgb=False, crop=False, data_type=data_type)
+#     #pid.preprocess_data_and_save()
+#     ds = pid.create_dataset_for_calculation()
+#     import matplotlib.pyplot as plt
+#     for image, file in zip(ds.take(300), pid.calculation_file_list):
+#         print(file)
+#         #plt.figure()
+#         #plt.imshow(image[0], "Greys")
+#         #plt.colorbar()
+#         #plt.show()

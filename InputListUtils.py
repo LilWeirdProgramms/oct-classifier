@@ -1,9 +1,7 @@
 import pandas as pd
-
 import InputList
 import re
 import os
-import image2d
 
 server_location = "/mnt/p_Zeiss_Clin/Projects/UWF OCTA/Clinical data/MOON1"
 healthy_retina_location = "data/healthy_retina_file_list.txt"

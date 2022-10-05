@@ -1,4 +1,3 @@
-from hyperparameterStudy.image_dataset import ImageDataset
 from tensorflow.keras.applications import VGG16
 import tensorflow as tf
 import random
@@ -81,19 +80,19 @@ def create_vgg_model(input_shape=(None, 2044, 2048, 3), train_from_layer=15):
     return model
 
 
-if __name__ == "__main__":
-    file_list = ImageDataset.load_file_list("train")[-200:]
-    dataset = ImageDataset(data_list=file_list, validation_split=True, mil=False, rgb=True)
-    for elem in dataset.dataset_train.take(1):
-        print(elem[1])
-        print(elem[0].shape)
-    # TODO: Memory Problem sind die 3 Channel
-
-    # Taken From:
-    # https://tvst.arvojournals.org/article.aspx?articleid=2770240
-
-    vgg_model = create_vgg_model()
-    vgg_model.fit(dataset.dataset_train.batch(2), validation_data=dataset.dataset_val)
+# if __name__ == "__main__":
+#     file_list = ImageDataset.load_file_list("train")[-200:]
+#     dataset = ImageDataset(data_list=file_list, validation_split=True, mil=False, rgb=True)
+#     for elem in dataset.dataset_train.take(1):
+#         print(elem[1])
+#         print(elem[0].shape)
+#     # TODO: Memory Problem sind die 3 Channel
+#
+#     # Taken From:
+#     # https://tvst.arvojournals.org/article.aspx?articleid=2770240
+#
+#     vgg_model = create_vgg_model()
+#     vgg_model.fit(dataset.dataset_train.batch(2), validation_data=dataset.dataset_val)
 
 
 class Precision(tf.keras.metrics.Precision):

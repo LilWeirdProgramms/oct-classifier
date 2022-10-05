@@ -1,6 +1,4 @@
-from hyperparameterStudy.hyper_postprocessing import HyperPostprocessor
-from hyperparameterStudy.image_dataset import ImageDataset
-from hyperparameterStudy.image_dataset import ImageDataset
+from hyper_postprocessing import HyperPostprocessor
 from tensorflow.keras.applications import VGG16
 import tensorflow as tf
 import random
